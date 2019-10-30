@@ -28,13 +28,13 @@ namespace SrcMan
         public Type? WorkType { get; set; }
         public MobileSuit()
         {
-            Assembly = Assembly.GetCallingAssembly();
+            Assembly = Assembly.GetExecutingAssembly();
             DefaultForeColor = Console.ForegroundColor == ConsoleColor.Black ? ConsoleColor.White : Console.ForegroundColor;
         }
-        public MobileSuit(Type type):this()
+        public MobileSuit(Type type)
         {
-            //Assembly = Assembly.GetExecutingAssembly();
-            //DefaultForeColor = Console.ForegroundColor==ConsoleColor.Black? ConsoleColor.White:Console.ForegroundColor;
+            Assembly = Assembly.GetExecutingAssembly();
+            DefaultForeColor = Console.ForegroundColor==ConsoleColor.Black? ConsoleColor.White:Console.ForegroundColor;
             WorkType = type;
             WorkInstance = Assembly.CreateInstance(type.FullName);
             
@@ -102,7 +102,7 @@ namespace SrcMan
                         Assembly.GetType(cmdlist[1], false, true)??
                         Assembly.GetType(WorkType?.FullName + '.' + cmdlist[1], false, true)??
                         Assembly.GetType(Assembly.GetName().Name + '.' + cmdlist[1], false, true);
-                    if (WorkType == null|| WorkType.GetCustomAttribute(typeof(MobileSuitItem)) == null)
+                    if (WorkType == null)
                     {
                         return TraceBack.ObjectNotFound;
                     }
@@ -154,7 +154,7 @@ namespace SrcMan
                 {
 
                     var nextobj = Assembly.GetType(type.FullName + "." + cmdlist[readindex]);
-                    if (nextobj == null|| nextobj.GetCustomAttribute(typeof(MobileSuitItem)) == null)
+                    if (nextobj == null)
                     {
                         return TraceBack.ObjectNotFound;
                     }
@@ -182,7 +182,7 @@ namespace SrcMan
             else if (WorkInstance==null)
             {
                 var nextobj = Assembly.GetType(cmdlist[readindex], false, true) ?? Assembly.GetType(Assembly.GetName().Name + '.' + cmdlist[readindex], false, true);
-                if (nextobj == null|| nextobj.GetCustomAttribute(typeof(MobileSuitItem)) == null)
+                if (nextobj == null)
                 {
                     return TraceBack.ObjectNotFound;
                 }
