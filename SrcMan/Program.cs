@@ -7,7 +7,9 @@ namespace SrcMan
     {
         static void Main(string[] args)
         {
-            var ms = new MobileSuit(typeof(MobileSuitTest));
+            Console.WriteLine(""==null);
+
+            var ms = new MobileSuit(typeof(SrcMan));
             ms.Run();
         }
 

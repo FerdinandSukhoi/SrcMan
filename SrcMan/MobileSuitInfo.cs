@@ -4,12 +4,10 @@ using System.Text;
 
 namespace SrcMan
 {
-    [AttributeUsage(AttributeTargets.Class |
-                       AttributeTargets.Struct,
-                       AllowMultiple = true)]
-    public class MobileSuitInfo: Attribute, IMobileSuitInfo
+    [AttributeUsage(AttributeTargets.All,AllowMultiple = false)]
+    public sealed class MobileSuitInfo: Attribute, IMobileSuitInfo
     {
-        public string Prompt { get; set; }
+        public string Prompt { get; private set; }
         public MobileSuitInfo(string prompt)
         {
             Prompt = prompt;

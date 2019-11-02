@@ -9,6 +9,5 @@ namespace SrcMan
                        AllowMultiple = true)]
     public class MobileSuitItem: Attribute
     {
-
     }
 }

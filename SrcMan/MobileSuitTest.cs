@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SrcMan
 {
-    [MobileSuitItem, MobileSuitInfo("Test")]
+    [MobileSuitInfo("Test")]
     public class MobileSuitTest : IMobileSuitInfo
     {
         public string Prompt { get; set; } = "Test";
@@ -14,10 +14,10 @@ namespace SrcMan
         {
             Console.WriteLine("Test!!!!");
         }
-        [MobileSuitItem, MobileSuitInfo("TestC")]
+        [MobileSuitInfo("TestC")]
         public class TestC
         {
-            public void t()
+            public void T()
             {
                 Console.WriteLine("t");
             }

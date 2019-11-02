@@ -6,6 +6,6 @@ namespace SrcMan
 {
     public interface IMobileSuitInfo
     {
-        string Prompt { get; set; }
+        string Prompt { get; }
     }
 }

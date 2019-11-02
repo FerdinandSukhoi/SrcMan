@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Reflection;
 using System.IO;
+using System.Linq;
 
 namespace SrcMan
 {
@@ -15,8 +16,8 @@ namespace SrcMan
         public Stack<object> InstanceRef { get; set; } = new Stack<object>();
         public List<string> InstanceNameStk { get; set; } = new List<string>();
         public bool ShowRef { get; set; } = true;
-        public const BindingFlags Flags = BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance;
-        public ConsoleColor DefaultForeColor { get; set; }
+        public const BindingFlags Flags = BindingFlags.IgnoreCase |BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance;
+
         public enum TraceBack
         {
 
@@ -34,12 +35,10 @@ namespace SrcMan
         public MobileSuit()
         {
             Assembly = Assembly.GetCallingAssembly();
-            DefaultForeColor = Console.ForegroundColor == ConsoleColor.Black ? ConsoleColor.White : Console.ForegroundColor;
         }
         public MobileSuit(Type type):this()
         {
-            //Assembly = Assembly.GetExecutingAssembly();
-            //DefaultForeColor = Console.ForegroundColor==ConsoleColor.Black? ConsoleColor.White:Console.ForegroundColor;
+            
             WorkType = type;
             WorkInstance = Assembly.CreateInstance(type.FullName);
             
@@ -50,20 +49,22 @@ namespace SrcMan
         {
             if (UseTraceBack && ShowDone) Console.WriteLine("Done.");
         }  
-        private void ErrInvalidCommand()
+       private void ErrInvalidCommand()
         {
             if (UseTraceBack)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Error! Invalid Command!");
                 Console.Beep();
-                Console.ForegroundColor = DefaultForeColor;
+                Console.ResetColor();
             }
             else
             {
                 throw new Exception("Invalid Command!");
             }
         }
+
+
         private void ErrObjectNotFound()
         {
             if (UseTraceBack)
@@ -71,7 +72,7 @@ namespace SrcMan
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Error! Object Not Found!");
                 Console.Beep();
-                Console.ForegroundColor = DefaultForeColor;
+                Console.ResetColor();
             }
             else
             {
@@ -85,7 +86,7 @@ namespace SrcMan
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Error! Member Not Found!");
                 Console.Beep();
-                Console.ForegroundColor = DefaultForeColor;
+                Console.ResetColor();
             }
             else
             {
@@ -130,69 +131,64 @@ namespace SrcMan
         }
         private TraceBack ListMembers()
         {
-            var fi = WorkType.GetFields(Flags);
-            var pi = WorkType.GetProperties(Flags);
-            List<string> members = new List<string>(fi.Length + pi.Length);
-            if (!(fi?.Length == 0))
-            {
-                foreach (var item in fi)
-                {
-                    members.Add(item.Name);
-                }
-            }
-            if (!(pi?.Length == 0))
-            {
-                foreach (var item in pi)
-                {
-                    if (item.Name != "Prompt")
-                    {
-                        members.Add(item.Name);
-                    }
+            var fi = from i in (from f in WorkType.GetFields(Flags)
+                                select (MemberInfo)f).Union
+                               (from p in WorkType.GetProperties(Flags)
+                                select (MemberInfo)p)
+                     orderby i.Name
+                     select i;
 
-                }
-            }
-            members.Sort();
-            if (members.Count > 0)
+
+            if (fi?.Count() > 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Members:");
-                Console.ForegroundColor = DefaultForeColor;
-                foreach (var item in members)
+                Console.ResetColor();
+                foreach (var item in fi)
                 {
-                    Console.WriteLine($"\t{item}");
+                    var info = (MobileSuitInfo)item.GetCustomAttribute(typeof(MobileSuitInfo));
+                    var exInfo = info == null
+                                ? ""
+                                : $"{info.Prompt}]";
+                    Console.Write($"\t{item.Name}");
+                    Console.ForegroundColor = info == null
+                                              ? ConsoleColor.DarkBlue
+                                              : ConsoleColor.DarkCyan;
+                    Console.WriteLine(exInfo);
+                    Console.ResetColor();
                 }
             }
-            members.Clear();
-            var mi = WorkType.GetMethods(Flags);
-            if (!(mi?.Length == 0))
-            {
+            var mi = from m in WorkType.GetMethods(Flags)
+                      where
+                            !(from p in WorkType.GetProperties(Flags)
+                              select $"get_{p.Name}").Contains(m.Name)
+                         && !(from p in WorkType.GetProperties(Flags)
+                              select $"set_{p.Name}").Contains(m.Name)
+                      select m;
+                        
 
-                foreach (var item in mi)
-                {
-                    var iname = item.Name;
-                    if (iname != "ToString"
-                        && iname != "GetHashCode"
-                        && iname != "GetType"
-                        && iname != "Equals"
-                        && (iname.Length <= 4 || iname.Substring(1, 3) != "et_"))
-                    {
-                        members.Add(iname);
-                    }
-                }
-            }
-            members.Sort();
-            if (members.Count > 0)
+            if (mi?.Count() > 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Methods:");
-                Console.ForegroundColor = DefaultForeColor;
-                foreach (var item in members)
+                Console.ResetColor();
+                foreach (var item in mi)
                 {
-                    Console.WriteLine($"\t{item}");
+                    var info = (MobileSuitInfo)item.GetCustomAttribute(typeof(MobileSuitInfo));
+                    var exInfo = info == null
+                                ? $"({ item.GetParameters().Length} Parameters)"
+                                : $"[{info.Prompt}]";
+                    Console.Write($"\t{item.Name}");
+                    Console.ForegroundColor = info == null
+                                              ? ConsoleColor.DarkBlue
+                                              : ConsoleColor.DarkCyan;
+                    Console.WriteLine(exInfo);
+                    Console.ResetColor();
                 }
             }
             return TraceBack.AllOk;
         }
+        private delegate void set_prop(object? obj, object? arg);
         private TraceBack SwitchOption(string optionName)
         {
             switch (optionName)
@@ -214,19 +210,48 @@ namespace SrcMan
                     return TraceBack.InvalidCommand;
             }
         }
+        private TraceBack ModifyMember(string[] args)
+        {
+            if (WorkType == null) return TraceBack.ObjectNotFound;
+            var obj = (MemberInfo)WorkType.GetProperty(args[0], Flags) ?? WorkType.GetField(args[0], Flags);
+            if (obj == null) return TraceBack.MemberNotFound;
+            var obj_set = (set_prop)WorkType.GetProperty(args[0], Flags).SetValue ?? WorkType.GetField(args[0], Flags).SetValue;
+            var cvt = ((MobileSuitDataConverter)obj.GetCustomAttribute(typeof(MobileSuitDataConverter)))?.Converter;
+            try
+            {
+                obj_set(WorkInstance, cvt != null ? cvt(args[1]) : args[1]);
+                return TraceBack.AllOk;
+            }
+            catch
+            {
+                return TraceBack.InvalidCommand;
+            }
+        }
         private TraceBack RunLocal(string cmd)
         {
 
             var cmdlist = cmd.ToLower().Split(' ');
             switch (cmdlist[0])
             {
+                case "vw":
+                case "view":
+                    if (cmdlist.Length == 1) return TraceBack.InvalidCommand;
+                    var obj = WorkType.GetProperty(cmdlist[1], Flags)?.GetValue(WorkInstance) ??
+                                  WorkType.GetField(cmdlist[1], Flags)?.GetValue(WorkInstance);
+                    if (obj==null)
+                    {
+                        return TraceBack.ObjectNotFound;
+                    }
+                    Console.WriteLine(obj.ToString());
+                    return TraceBack.AllOk;
                 case "nw":
                 case "new":
+                    if (cmdlist.Length == 1) return TraceBack.InvalidCommand;
                     WorkType = 
                         Assembly.GetType(cmdlist[1], false, true)??
                         Assembly.GetType(WorkType?.FullName + '.' + cmdlist[1], false, true)??
                         Assembly.GetType(Assembly.GetName().Name + '.' + cmdlist[1], false, true);
-                    if (WorkType == null|| WorkType.GetCustomAttribute(typeof(MobileSuitItem)) == null)
+                    if (WorkType == null)
                     {
                         return TraceBack.ObjectNotFound;
                     }
@@ -238,6 +263,10 @@ namespace SrcMan
                     InstanceNameStk.Clear();
                     InstanceNameStk.Add($"(new {WorkType.Name})");
                     return TraceBack.AllOk;
+                case "md":
+                case "modify":
+                    if (cmdlist.Length == 1) return TraceBack.InvalidCommand;
+                    else return ModifyMember(cmdlist[1..]);
                 case "lv":
                 case "leave":
                     if (InstanceRef.Count == 0)
@@ -248,21 +277,16 @@ namespace SrcMan
                     return TraceBack.AllOk;
                 case "et":
                 case "enter":
+                    if (cmdlist.Length == 1) return TraceBack.InvalidCommand;
                     var nextobj = WorkType.GetProperty(cmdlist[1], Flags)?.GetValue(WorkInstance) ??
                         WorkType.GetField(cmdlist[1], Flags)?.GetValue(WorkInstance);
-                    if (nextobj?.GetType().GetCustomAttribute(typeof(MobileSuitItem)) == null)
-                    {
-                        return TraceBack.MemberNotFound;
-                    }
-                    else
-                    {
-                        InstanceRef.Push(WorkInstance);
-                        InstanceNameStk.Add(WorkType.GetProperty(cmdlist[1], Flags)?.Name ??
-                            WorkType.GetField(cmdlist[1], Flags)?.Name);
-                        WorkInstance = nextobj;
-                        WorkType = nextobj.GetType();
-                        return TraceBack.AllOk;
-                    }
+                    InstanceRef.Push(WorkInstance);
+                    InstanceNameStk.Add(WorkType.GetProperty(cmdlist[1], Flags)?.Name ??
+                        WorkType.GetField(cmdlist[1], Flags)?.Name);
+                    WorkInstance = nextobj;
+                    WorkType = nextobj.GetType();
+                    return TraceBack.AllOk;
+                    
 
                 case "exit":
                     return TraceBack.OnExit;
@@ -291,9 +315,9 @@ namespace SrcMan
 
         }
         //private TraceBack ModifyValue(ref string[] cmdlist, int readindex, object? instance) { }
-        private TraceBack RunObject(ref string[] cmdlist, int readindex, object? instance)
+        private TraceBack RunObject(string[] cmdlist, object? instance)
         {
-            if (readindex >= cmdlist.Length)
+            if (0 == cmdlist.Length)
             {
                 return TraceBack.ObjectNotFound;
             }
@@ -303,7 +327,9 @@ namespace SrcMan
                 MethodInfo mi;
                 try
                 {
-                    mi = type.GetMethod(cmdlist[readindex], Flags);
+                    mi = type.GetMethods(Flags)
+                        .Where(m => m.Name.ToLower() == cmdlist[0].ToLower())
+                        .Where(m => m.GetParameters().Length == cmdlist.Length - 1).FirstOrDefault();
                 }
                 catch (AmbiguousMatchException)
                 {
@@ -314,40 +340,29 @@ namespace SrcMan
                 //if there's no such method
                 if (mi == null)
                 {
-                    var nextobj = type.GetProperty(cmdlist[readindex], Flags)?.GetValue(instance)??
-                        type.GetField(cmdlist[readindex], Flags)?.GetValue(instance)??
-                        type.Assembly.CreateInstance(type.FullName + "." + cmdlist[readindex]);
-                    if (nextobj?.GetType().GetCustomAttribute(typeof(MobileSuitItem)) == null)
-                    {
-                        return TraceBack.ObjectNotFound;
-                    }
-                    return RunObject(ref cmdlist, readindex + 1, nextobj);
+                    var nextobj = 
+                        type.GetProperty(cmdlist[0], Flags)?.GetValue(instance)??
+                        type.GetField(cmdlist[0], Flags)?.GetValue(instance)??
+                        type.Assembly.CreateInstance(type.FullName + "." + cmdlist[0]);
+                    return RunObject(cmdlist[1..], nextobj);
                 }
                 else
                 {
-                    if (readindex + 1 == cmdlist.Length)
-                    {
-                        mi.Invoke(instance, null);
-                    }
-                    else
-                    {
-                        string[] args = new string[cmdlist.Length - readindex - 1];
-                        cmdlist.CopyTo(args, 1);
-                        mi.Invoke(instance, args);
-                    }
+                    mi.Invoke(instance, cmdlist[1..]);
                     return TraceBack.AllOk;
                 }
             }
             else if (WorkInstance==null)
             {
-                var nextobj = Assembly.GetType(cmdlist[readindex], false, true) ?? Assembly.GetType(Assembly.GetName().Name + '.' + cmdlist[readindex], false, true);
-                if (nextobj == null|| nextobj.GetCustomAttribute(typeof(MobileSuitItem)) == null)
+                var nextobj = Assembly.GetType(cmdlist[0], false, true) ?? 
+                    Assembly.GetType(Assembly.GetName().Name + '.' + cmdlist[0], false, true);
+                if (nextobj == null)
                 {
                     return TraceBack.ObjectNotFound;
                 }
                 else
                 {
-                    return RunObject(ref cmdlist, readindex + 1,
+                    return RunObject(cmdlist[1..],
                         Assembly.CreateInstance(nextobj.FullName));
                 }
             }
@@ -366,7 +381,7 @@ namespace SrcMan
             {
                 Console.ForegroundColor = ConsoleColor.Magenta;
                 Console.Write(Prompt+'>');
-                Console.ForegroundColor = DefaultForeColor;
+                Console.ResetColor();
                 string cmd = Console.ReadLine();
                 TraceBack tb;
                 if (cmd == "")
@@ -380,7 +395,7 @@ namespace SrcMan
                 else
                 {
                     string[] cmdlist = cmd.Split(' ');
-                    tb= RunObject(ref cmdlist, 0, WorkInstance);
+                    tb= RunObject(cmdlist, WorkInstance);
                     
                 }
                 switch (tb)
