@@ -1,0 +1,2 @@
+# SrcMan
+A 'Source' Manager.
