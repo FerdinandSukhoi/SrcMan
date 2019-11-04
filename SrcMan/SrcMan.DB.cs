@@ -18,6 +18,7 @@ namespace SrcMan
                 public SrcActor.SrcActorCollection Actors { get; set; } = new SrcActor.SrcActorCollection();
                 [JsonIgnore]
                 public SrcItem.SrcItemCollection Items { get; set; } = new SrcItem.SrcItemCollection();
+                [JsonIgnore]
                 public SrcLabel.SrcLabelCollection Labels { get; set; } = new SrcLabel.SrcLabelCollection();
                 public class SrcLabel
                 {
@@ -63,13 +64,14 @@ namespace SrcMan
                     public List<string> Labels { get; set; } = new List<string>();
                     public int Index { get; set; }
                     public bool Stared { get; set; }
-                    public int GeneralIndex { get; set; }
                     [JsonIgnore]
                     public SrcActor? Actress { get; set; }
                 }
                 public DBStore() { }
                 public void Init()
                 {
+                    Items.Clear();
+                    Labels.Clear();
                     foreach (var actor in Actors)
                     {
                         foreach (var item in actor.Items)
@@ -80,6 +82,10 @@ namespace SrcMan
                             {
                                 foreach (var label in item.Labels)
                                 {
+                                    if (!Labels.Contains(label))
+                                    {
+                                        Labels.Add(new SrcLabel() { Name=label });
+                                    }
                                     Labels[label].Items.Add(item);
                                 }
                             }
@@ -92,7 +98,24 @@ namespace SrcMan
     
             SrcManBase.Config Config { get; set; }
             
-
+            public void Order()
+            {
+                if (!DBCheck()) return;
+                int i = 0;
+                foreach (var actor in Store?.Actors)
+                {
+                    actor.Index = i;
+                    foreach (var item in actor.Items)
+                    {
+                        item.Index = item.Index % 100 + 100 * i;
+                    }
+                    i++;
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"DB Ordered successfully.");
+                Console.ResetColor();
+                Format();
+            }
             public DBEngine(SrcManBase.Config config)
             {
                 Config = config;
@@ -120,7 +143,7 @@ namespace SrcMan
                 }
                 return true;
             }
-            private string[] SplitFN(FileInfo src)
+            internal static string[] SplitFN(FileInfo src)
             {
                 return src.Name.Replace("_", "-").Replace(src.Extension, "").Split("-");
             }
@@ -262,11 +285,11 @@ namespace SrcMan
                 Console.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.");
                 Console.ResetColor();
             }
-            private string GetActorCode(int index)
+            internal static string GetActorCode(int index)
             {
                 return new string(new char[] { (char)(index / 26 + 'A'), (char)(index % 26 + 'A') });
             }
-            private string GetItemCode(int index)
+            internal static string GetItemCode(int index)
             {
                 return string.Format("{0}{1:00}", GetActorCode(index / 100), index % 100);
             }
@@ -356,22 +379,22 @@ namespace SrcMan
                     Save();
                 }
             }
-            public void Status(string arg)
-            {
+            //public void Status(string arg)
+            //{
 
-                switch (arg)
-                {
-                    case "-a":
-                        break;
-                    case "-v":
+            //    switch (arg)
+            //    {
+            //        case "-a":
+            //            break;
+            //        case "-v":
 
-                    case "-l":
+            //        case "-l":
 
-                    default:
-                        Console.WriteLine("This is null");
-                        break;
-                }
-            }
+            //        default:
+            //            Console.WriteLine("This is null");
+            //            break;
+            //    }
+            //}
         }
     }
 }

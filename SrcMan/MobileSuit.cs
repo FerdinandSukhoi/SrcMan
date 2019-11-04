@@ -149,7 +149,7 @@ namespace SrcMan
                     var info = (MobileSuitInfo)item.GetCustomAttribute(typeof(MobileSuitInfo));
                     var exInfo = info == null
                                 ? ""
-                                : $"{info.Prompt}]";
+                                : $"[{info.Prompt}]";
                     Console.Write($"\t{item.Name}");
                     Console.ForegroundColor = info == null
                                               ? ConsoleColor.DarkBlue
