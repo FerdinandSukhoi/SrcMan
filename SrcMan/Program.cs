@@ -8,7 +8,7 @@ namespace SrcMan
         static void Main(string[] args)
         {
             Console.WriteLine(""==null);
-
+            Environment.CurrentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var ms = new MobileSuit(typeof(SrcMan));
             ms.Run();
         }
