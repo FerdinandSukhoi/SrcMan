@@ -18,6 +18,7 @@ namespace SrcMan
         public string ConfigPath { get; set; }
         public DBEngine DB { get; set; }
         public FindEngine Find { get; set; }
+        //public MTPEngine MTP { get; set; }
         public SrcMan()
         {
             Console.WriteLine("InputPath of 'SrcManConfig.json', Leave empty to use current path");
@@ -36,6 +37,7 @@ namespace SrcMan
             }
             DB = new DBEngine(ConfigData);
             Find = new FindEngine(DB);
+            //MTP = new MTPEngine(DB, ConfigData);
         }
         public void Init()
         {
@@ -48,35 +50,58 @@ namespace SrcMan
             string buf;
 
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter Source Dirctory(Now={0})>",ConfigData.DataPath);
+            Console.Write("Enter Source Dirctory\n(Now={0})>",ConfigData.DataPath);
             Console.ResetColor();
             buf = Console.ReadLine();
             ConfigData.DataPath = buf == "" ? ConfigData.DataPath:buf;
 
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter ConfigFiles Dirctory(Now={0})>", ConfigData.ConfigPath);
+            Console.Write("Enter ConfigFiles Dirctory\n(Now={0})>", ConfigData.ConfigPath);
             Console.ResetColor();
             buf = Console.ReadLine();
-            ConfigData.ConfigPath = buf == "" ? ConfigData.DataPath : buf;
+            ConfigData.ConfigPath = buf == "" ? ConfigData.ConfigPath : buf;
 
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter CacheFiles Dirctory(Now={0})>", ConfigData.CachePath);
+            Console.Write("Enter CacheFiles Dirctory\n(Now={0})>", ConfigData.CachePath);
             Console.ResetColor();
             buf = Console.ReadLine();
-            ConfigData.CachePath = buf == "" ? ConfigData.DataPath : buf;
+            ConfigData.CachePath = buf == "" ? ConfigData.CachePath : buf;
 
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter ConvertFiles Dirctory(Now={0})>", ConfigData.ConvertPath);
+            Console.Write("Enter ConvertFiles Dirctory\n(Now={0})>", ConfigData.ConvertPath);
             Console.ResetColor();
             buf = Console.ReadLine();
-            ConfigData.ConvertPath = buf == "" ? ConfigData.DataPath : buf;
+            ConfigData.ConvertPath = buf == "" ? ConfigData.ConvertPath : buf;
+
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write("Enter Pull Path\n(Now={0})>", ConfigData.PullFilePath);
+            Console.ResetColor();
+            buf = Console.ReadLine();
+            ConfigData.PullFilePath = buf == "" ? ConfigData.PullFilePath : buf;
+
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write("Enter MTP Device Name (May use 'MTP List' command to get)\n(Now={0})>", ConfigData.MTPDeviceName);
+            Console.ResetColor();
+            buf = Console.ReadLine();
+            ConfigData.MTPDeviceName = buf == "" ? ConfigData.MTPDeviceName : buf;
+
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.Write("Enter MTP Device Dirctory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={0})>", ConfigData.MTPDirctoryPath);
+            Console.ResetColor();
+            buf = Console.ReadLine();
+            ConfigData.MTPDirctoryPath = buf == "" ? ConfigData.MTPDirctoryPath : buf;
+
             Console.WriteLine();
             Console.WriteLine("Now:");
             Console.WriteLine($"DataFiles Dirctory={ConfigData.DataPath}");
             Console.WriteLine($"ConfigFiles Dirctory={ConfigData.ConfigPath}");
             Console.WriteLine($"CacheFiles Dirctory={ConfigData.CachePath}");
             Console.WriteLine($"ConvertFiles Dirctory={ConfigData.ConvertPath}");
+            Console.WriteLine($"Pull Files Dirctory={ConfigData.PullFilePath}");
+            Console.WriteLine($"MTP Device Name={ConfigData.MTPDeviceName}");
+            Console.WriteLine($"MTP Device Dirctory Path={ConfigData.MTPDirctoryPath}");
             Console.WriteLine();
+
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Write("All OK?(input y to save)>");
             Console.ResetColor();
@@ -97,6 +122,81 @@ namespace SrcMan
             => DB.Format();
         public void EnQ() 
             => EnQueueAll();
+        //public void Sync(string itemCode)
+        //    => MTP.Sync(itemCode);
+        //public void DSync(string itemCode)
+        //    => MTP.DeSync(itemCode);
+        //public void Push()
+        //    => MTP.Push();
+        public void Pull()
+        {
+            if (!DB.DBCheck()) return;
+            Regex numbRgx = new Regex("[0-9]");
+            foreach (var item in (new DirectoryInfo(ConfigData.PullFilePath)).GetFiles())
+            {
+                var itemInfoArr = item.FullName.Replace(item.Extension, "").Split("-");
+                var itemInfo = new DBEngine.DBStore.SrcItem
+                {
+                    Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
+                    ? $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}-{itemInfoArr[4]}"
+                    : $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}",
+
+
+                };
+                DBEngine.DBStore.SrcActor actor;
+                if (!DB.Store.Actors.Contains(itemInfoArr[1]))
+                {
+                    actor = new DBEngine.DBStore.SrcActor();
+                    actor.Name = itemInfoArr[1];
+                    actor.Index = DB.Store.Actors.Count;
+
+                    DB.Store.Actors.Add(actor);
+                }
+                else
+                {
+                    actor = DB.Store.Actors[itemInfoArr[1]];
+                }
+                itemInfo.Index = 100 * actor.Index + actor.Items.Count;
+                if (!actor.Items.Contains(itemInfo.Name))
+                {
+                    actor.Items.Add(itemInfo);
+                    if (itemInfoArr.Length > 4)
+                    {
+                        foreach (var label in itemInfoArr[4..])
+                        {
+                            if (numbRgx.IsMatch(label)) continue;
+                            itemInfo.Labels.Add(label.ToUpper());
+                            if (!DB.Store.Labels.Contains(label.ToUpper()))
+                            {
+                                DB.Store.Labels.Add(new DBEngine.DBStore.SrcLabel() { Name = label.ToUpper() });
+                            }
+                            DB.Store.Labels[label.ToUpper()].Items.Add(itemInfo);
+                        }
+                    }
+                    itemInfo.Stared = itemInfo.Labels.Contains("M");
+                }
+                else
+                {
+                    itemInfo = actor.Items[itemInfo.Name];
+                }
+
+
+
+
+                DB.Store.Init();
+                var sb = new StringBuilder($"{ DBEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
+                sb.Append(item.Extension);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Pulled:");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"{item.FullName}\n>>\n{sb.ToString()}");
+                item.MoveTo(Path.Combine(item.DirectoryName, sb.ToString()));
+                itemInfo.Path = Path.Combine(item.DirectoryName, sb.ToString());
+                Console.ResetColor();
+            }
+
+            Update();
+        }
         private bool QueueCheck()
         {
             if (SrcQueue?.Count==0)
@@ -124,6 +224,20 @@ namespace SrcMan
             Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
             Console.ResetColor();
         }
+        public void Jump()
+        {
+            if (!DB.DBCheck()) return;
+            if (!QueueCheck()) return;
+            Console.ForegroundColor = ConsoleColor.DarkBlue;
+            Console.Write("Jump:");
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            var rmf = SrcQueue.Dequeue();
+            Console.WriteLine($"{rmf.FullName}");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
+            Console.ResetColor();
+        }
+        public void Jmp() => Jump();
         public void Remove()
         {
             if (!DB.DBCheck()) return;

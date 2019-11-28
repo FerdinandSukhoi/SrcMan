@@ -344,7 +344,7 @@ namespace SrcMan
                             Console.ForegroundColor = ConsoleColor.Blue;
                             Console.WriteLine($"Move {fi.FullName} \n >> {itemPath}");
                             Console.ResetColor();
-                            fi.MoveTo(itemPath);
+                            fi.MoveTo(itemPath,true);
                             item.Path = itemPath;
                         }
                     }
