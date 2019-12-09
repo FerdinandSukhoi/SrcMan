@@ -100,7 +100,7 @@ namespace SrcMan
             
             public void Order()
             {
-                if (!DBCheck()) return;
+                if (!DbCheck()) return;
                 int i = 0;
                 foreach (var actor in Store?.Actors)
                 {
@@ -132,18 +132,15 @@ namespace SrcMan
                 }
                 return true;
             }
-            internal bool DBCheck()
+            internal bool DbCheck()
             {
-                if (Store == null)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.");
-                    Console.ResetColor();
-                    return false;
-                }
-                return true;
+                if (Store != null) return true;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.");
+                Console.ResetColor();
+                return false;
             }
-            internal static string[] SplitFN(FileInfo src)
+            internal static string[] SplitFn(FileInfo src)
             {
                 return src.Name.Replace("_", "-").Replace(src.Extension, "").Split("-");
             }
@@ -151,35 +148,37 @@ namespace SrcMan
             {
                 if (!ConfigCheck()) return;
                 //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write("Enter Source Dirctory>");
+                //Console.Write("Enter Source Directory>");
                 //Console.ResetColor();
-                var dbpath = Path.Combine(Config.ConfigPath, "SrcDB.json");
-                if (!Directory.Exists(Config.ConfigPath)||!File.Exists(dbpath))
+                var dataBasePath = Path.Combine(Config.ConfigPath, "SrcDB.json");
+                if (!Directory.Exists(Config.ConfigPath)||!File.Exists(dataBasePath))
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Dirctory/File Not Exist!");
+                    Console.Write("Directory/File Not Exist!");
                     Console.ResetColor();
                     return;
                 }
-                Store = JsonConvert.DeserializeObject<DBStore>(File.ReadAllText(dbpath));
+                Store = JsonConvert.DeserializeObject<DBStore>(File.ReadAllText(dataBasePath));
                 Store.Init();
+                MobileSuit.MobileSuitHost.GeneralIo.WriteLine("DB Loaded Successfully.",
+                    MobileSuit.MobileSuitIoInterface.OutputType.AllOk);
             }
             public void Build()
             {
                 Store = new DBStore();
                 if (!ConfigCheck()) return;
                 //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write("Enter Source Dirctory>");
+                //Console.Write("Enter Source Directory>");
                 //Console.ResetColor();
                 if (!Directory.Exists(Config.DataPath))
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Dirctory Not Exist!");
+                    Console.Write("Directory Not Exist!");
                     Console.ResetColor();
                     return;
                 }
-                Regex numbRgx = new Regex("[0-9]");
-                DirectoryInfo di = new DirectoryInfo(Config.DataPath);
+                var numbRgx = new Regex("[0-9]");
+                var di = new DirectoryInfo(Config.DataPath);
                 foreach (var actorShell in di.GetDirectories())
                 {
                     foreach (var actorDir in actorShell.GetDirectories())
@@ -194,10 +193,15 @@ namespace SrcMan
                             Stared = (actorInfo.Length == 3)
                         };
                         Store.Actors.Add(actor);
-                        int itemIndex = 0;
+                        var itemIndex = 0;
                         foreach (var item in actorDir.GetFiles())
                         {
-                            var itemInfoArr = SplitFN(item);
+                            var itemInfoArr = SplitFn(item);
+                            if (itemInfoArr.Length < 4)
+                            {
+                                Console.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
+                                continue;
+                            }
                             var itemInfo = new DBStore.SrcItem
                             {
                                 Path = item.FullName,
@@ -269,14 +273,14 @@ namespace SrcMan
             public void Save()
             {
                 if (!ConfigCheck()) return;
-                if (!DBCheck()) return;
+                if (!DbCheck()) return;
                 //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write("Enter Source Dirctory>");
+                //Console.Write("Enter Source Directory>");
                 //Console.ResetColor();
                 if (!Directory.Exists(Config.ConfigPath))
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Dirctory Not Exist!");
+                    Console.Write("Directory Not Exist!");
                     Console.ResetColor();
                     return;
                 }
@@ -291,93 +295,91 @@ namespace SrcMan
             }
             internal static string GetItemCode(int index)
             {
-                return string.Format("{0}{1:00}", GetActorCode(index / 100), index % 100);
+                return $"{GetActorCode(index / 100)}{index % 100:00}";
             }
             public void Format()
             {
                 if (!ConfigCheck()) return;
-                if (!DBCheck()) return;
+                if (!DbCheck()) return;
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.Write("SrcMan will format your SrcFiles. This will be irreversible. Are you sure to continue?(input y to continue)>");
                 Console.ResetColor();
-                if (Console.ReadLine().ToLower() == "y")
+                if (Console.ReadLine()?.ToLower() != "y") return;
+                foreach (var actor in Store?.Actors)
                 {
-                    foreach (var actor in Store?.Actors)
+                    var pactorHead = Path.Combine(Config.DataPath, ((char)(actor.Index / 26 + 'A')).ToString());
+                    if (!Directory.Exists(pactorHead))
                     {
-                        var pactorHead = Path.Combine(Config.DataPath, ((char)(actor.Index / 26 + 'A')).ToString());
-                        if (!Directory.Exists(pactorHead))
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"MkDir {pactorHead}");
-                            Console.ResetColor();
-                            Directory.CreateDirectory(pactorHead);
-                        }
-                        var actorDir= Path.Combine(pactorHead,
-                            $"{GetActorCode(actor.Index)}-{actor.Name}{(actor.Stared?"-M":"")}");
-                        if (!Directory.Exists(actorDir))
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"MkDir {actorDir}");
-                            Console.ResetColor();
-                            Directory.CreateDirectory(actorDir);
-                        }
-                        foreach (var item in actor.Items)
-                        {
-                            var itemPath= Path.Combine(actorDir,
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"MkDir {pactorHead}");
+                        Console.ResetColor();
+                        Directory.CreateDirectory(pactorHead);
+                    }
+                    var actorDir= Path.Combine(pactorHead,
+                        $"{GetActorCode(actor.Index)}-{actor.Name}{(actor.Stared?"-M":"")}");
+                    if (!Directory.Exists(actorDir))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"MkDir {actorDir}");
+                        Console.ResetColor();
+                        Directory.CreateDirectory(actorDir);
+                    }
+                    foreach (var item in actor.Items)
+                    {
+                        var itemPath= Path.Combine(actorDir,
                             $"{GetItemCode(item.Index)}-{actor.Name}-{item.Name}");
-                            var sb = new StringBuilder(itemPath);
-                            var fi = new FileInfo(item.Path);
-                            if (item.Labels.Count != 0)
-                            {
-                                foreach (var label in item.Labels)
-                                {
-                                    sb.Append($"-{label}");
-                                }
-
-                            }
-                            sb.Append(fi.Extension);
-                            itemPath = sb.ToString();
-                            if (fi.FullName==itemPath)
-                            {
-                                continue;
-                            }
-                            Console.ForegroundColor = ConsoleColor.Blue;
-                            Console.WriteLine($"Move {fi.FullName} \n >> {itemPath}");
-                            Console.ResetColor();
-                            fi.MoveTo(itemPath,true);
-                            item.Path = itemPath;
-                        }
-                    }
-                    //BFS
-                    var q = new Queue<DirectoryInfo>();
-                    q.Enqueue(new DirectoryInfo(Config.DataPath));
-                    while (q.Count>0)
-                    {
-                        var wkDir = q.Dequeue();
-                        var dirs = wkDir.GetDirectories();
-                        var files = wkDir.GetFiles();
-                        if (dirs.Length!=0)
+                        var sb = new StringBuilder(itemPath);
+                        var fi = new FileInfo(item.Path);
+                        if (item.Labels.Count != 0)
                         {
-                            foreach (var subDir in dirs)
+                            foreach (var label in item.Labels)
                             {
-                                q.Enqueue(subDir);
+                                sb.Append($"-{label}");
                             }
+
                         }
-                        else if(files.Length==0)
+                        sb.Append(fi.Extension);
+                        itemPath = sb.ToString();
+                        if (fi.FullName==itemPath)
                         {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine($"RmDir {wkDir.FullName}");
-                            Console.ResetColor();
-                            wkDir.Delete();
-
+                            continue;
                         }
+                        Console.ForegroundColor = ConsoleColor.Blue;
+                        Console.WriteLine($"Move {fi.FullName} \n >> {itemPath}");
+                        Console.ResetColor();
+                        fi.MoveTo(itemPath,true);
+                        item.Path = itemPath;
                     }
-
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"DB formatted successfully.");
-                    Console.ResetColor();
-                    Save();
                 }
+                //BFS
+                var q = new Queue<DirectoryInfo>();
+                q.Enqueue(new DirectoryInfo(Config.DataPath));
+                while (q.Count>0)
+                {
+                    var wkDir = q.Dequeue();
+                    var dirs = wkDir.GetDirectories();
+                    var files = wkDir.GetFiles();
+                    if (dirs.Length!=0)
+                    {
+                        foreach (var subDir in dirs)
+                        {
+                            q.Enqueue(subDir);
+                        }
+                    }
+                    else if(files.Length==0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"RmDir {wkDir.FullName}");
+                        Console.ResetColor();
+                        wkDir.Delete();
+
+                    }
+                }
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"DB formatted successfully.");
+                Console.ResetColor();
+                Save();
             }
             //public void Status(string arg)
             //{

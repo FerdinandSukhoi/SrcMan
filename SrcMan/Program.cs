@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using MobileSuit;
 
 namespace SrcMan
 {
@@ -8,7 +9,7 @@ namespace SrcMan
         static void Main(string[] args)
         {
             System.IO.Directory.SetCurrentDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-            var ms = new MobileSuit(typeof(SrcMan));
+            var ms = new MobileSuitHost(typeof(SrcMan));
             ms.Run();
         }
 

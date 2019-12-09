@@ -18,7 +18,7 @@ namespace SrcMan
             public void A(string arg0) => Actor(arg0);
             public void Actor(string arg0)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0));
                 if (acts.Count()==0)
                 {
@@ -70,7 +70,7 @@ namespace SrcMan
             public void A(string arg0, string arg1) => Actor(arg0, arg1);
             public void Actor(string arg0, string arg1)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0) && a.Name.Contains(arg1));
                 if (acts.Count() == 0)
                 {
@@ -122,7 +122,7 @@ namespace SrcMan
             public void L(string arg0) => Label(arg0);
             public void Label(string arg0)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var lbs = DB.Store.Labels.Where(a => a.Name.Contains(arg0.ToUpper()));
 
                 if (lbs.Count() == 0)
@@ -173,7 +173,7 @@ namespace SrcMan
             public void L(string arg0, string arg1) => Label(arg0, arg1);
             public void Label(string arg0, string arg1)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var itms = DB.Store.Items.Where(a => a.Labels.Contains(arg0.ToUpper()) && a.Labels.Contains(arg1.ToUpper()));
 
                 if (itms.Count() == 0)
@@ -210,7 +210,7 @@ namespace SrcMan
             public void L(string arg0, string arg1, string arg2) => Label(arg0, arg1, arg2);
             public void Label(string arg0, string arg1, string arg2)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var itms = DB.Store.Items.Where(a => a.Labels.Contains(arg0.ToUpper()) 
                 && a.Labels.Contains(arg1.ToUpper()) && a.Labels.Contains(arg2.ToUpper()));
 
@@ -248,7 +248,7 @@ namespace SrcMan
             public void I(string arg0) => Item(arg0);
             public void Item(string arg0)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var itms = DB.Store.Items.Where(a => a.Name.Contains(arg0.ToUpper()));
 
                 if (itms.Count() == 0)
@@ -287,7 +287,7 @@ namespace SrcMan
             public void I(string arg0, string arg1) => Item(arg0, arg1);
             public void Item(string arg0, string arg1)
             {
-                if (!DB.DBCheck()) return;
+                if (!DB.DbCheck()) return;
                 var itms = DB.Store.Items.Where(a => a.Name.Contains(arg0.ToUpper()) && a.Name.Contains(arg1.ToUpper()));
 
                 if (itms.Count() == 0)

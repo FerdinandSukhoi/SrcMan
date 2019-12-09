@@ -6,7 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="IMobileSuitInfo.cs" />
+    <Compile Remove="MobileSuit.cs" />
+    <Compile Remove="MobileSuitDataConverter.cs" />
+    <Compile Remove="MobileSuitInfo.cs" />
     <Compile Remove="MobileSuitItem.cs" />
+    <Compile Remove="MobileSuitTest.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\MobileSuit\srcs\MobileSuit\MobileSuit.csproj" />
     <ProjectReference Include="..\..\..\SourceMv\MvFile\Mvsrc\SrcManBase\SrcManBase.csproj" />
   </ItemGroup>
 

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+using MobileSuit;
 
 namespace SrcMan
 {
@@ -21,11 +22,19 @@ namespace SrcMan
         //public MTPEngine MTP { get; set; }
         public SrcMan()
         {
-            Console.WriteLine("InputPath of 'SrcManConfig.json', Leave empty to use current path");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write("Path of 'SrcManConfig.json'>");
-            Console.ResetColor();
-            ConfigPath = Path.Combine(Console.ReadLine(), "SrcManConfig.json");
+            if (File.Exists("SrcManConfig.json"))
+            {
+                ConfigPath = "SrcManConfig.json";
+            }
+            else
+            {
+                Console.WriteLine("InputPath of 'SrcManConfig.json', Leave empty to use current path");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write("Path of 'SrcManConfig.json'>");
+                Console.ResetColor();
+                ConfigPath = Path.Combine(Console.ReadLine(), "SrcManConfig.json");
+            }
+            
             
             if (!File.Exists(ConfigPath))
             {
@@ -36,6 +45,7 @@ namespace SrcMan
                 ConfigData = Newtonsoft.Json.JsonConvert.DeserializeObject<SrcManBase.Config>(File.ReadAllText(ConfigPath));
             }
             DB = new DBEngine(ConfigData);
+            Load();
             Find = new FindEngine(DB);
             //MTP = new MTPEngine(DB, ConfigData);
         }
@@ -86,22 +96,22 @@ namespace SrcMan
             ConfigData.MTPDeviceName = buf == "" ? ConfigData.MTPDeviceName : buf;
 
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter MTP Device Dirctory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={0})>", ConfigData.MTPDirctoryPath);
+            Console.Write("Enter MTP Device Directory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={0})>", ConfigData.MTPDirctoryPath);
             Console.ResetColor();
             buf = Console.ReadLine();
             ConfigData.MTPDirctoryPath = buf == "" ? ConfigData.MTPDirctoryPath : buf;
 
             Console.WriteLine();
             Console.WriteLine("Now:");
-            Console.WriteLine($"DataFiles Dirctory={ConfigData.DataPath}");
-            Console.WriteLine($"ConfigFiles Dirctory={ConfigData.ConfigPath}");
-            Console.WriteLine($"CacheFiles Dirctory={ConfigData.CachePath}");
-            Console.WriteLine($"ConvertFiles Dirctory={ConfigData.ConvertPath}");
-            Console.WriteLine($"Pull Files Dirctory={ConfigData.PullFilePath}");
+            Console.WriteLine($"DataFiles Directory={ConfigData.DataPath}");
+            Console.WriteLine($"ConfigFiles Directory={ConfigData.ConfigPath}");
+            Console.WriteLine($"CacheFiles Directory={ConfigData.CachePath}");
+            Console.WriteLine($"ConvertFiles Directory={ConfigData.ConvertPath}");
+            Console.WriteLine($"Pull Files Directory={ConfigData.PullFilePath}");
             Console.WriteLine($"MTP Device Name={ConfigData.MTPDeviceName}");
-            Console.WriteLine($"MTP Device Dirctory Path={ConfigData.MTPDirctoryPath}");
+            Console.WriteLine($"MTP Device Directory Path={ConfigData.MTPDirctoryPath}");
             Console.WriteLine();
-
+            
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Write("All OK?(input y to save)>");
             Console.ResetColor();
@@ -130,7 +140,7 @@ namespace SrcMan
         //    => MTP.Push();
         public void Pull()
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             Regex numbRgx = new Regex("[0-9]");
             foreach (var item in (new DirectoryInfo(ConfigData.PullFilePath)).GetFiles())
             {
@@ -211,7 +221,7 @@ namespace SrcMan
         private Regex ActorCodeRegex = new Regex("[A-Z][A-Z]");
         public void Peek()
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.Write("Peek:");
@@ -226,7 +236,7 @@ namespace SrcMan
         }
         public void Jump()
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             Console.ForegroundColor = ConsoleColor.DarkBlue;
             Console.Write("Jump:");
@@ -240,7 +250,7 @@ namespace SrcMan
         public void Jmp() => Jump();
         public void Remove()
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.Write("Remove:");
@@ -256,9 +266,9 @@ namespace SrcMan
             => Remove();
         public void Add()
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            var itemInfoArr = DBEngine.SplitFN(SrcQueue.Peek());
+            var itemInfoArr = DBEngine.SplitFn(SrcQueue.Peek());
             Regex numbRgx = new Regex("[0-9]");
             var itemInfo = new DBEngine.DBStore.SrcItem
             {
@@ -315,7 +325,7 @@ namespace SrcMan
         }
         public void Add(string actorCode, string name)
         {
-            if(!DB.DBCheck())return;
+            if(!DB.DbCheck())return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
             DBEngine.DBStore.SrcActor actor;
@@ -357,7 +367,7 @@ namespace SrcMan
         }
         public void Add(string actorCode, string name, string labels)
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
             DBEngine.DBStore.SrcActor actor;
@@ -416,10 +426,10 @@ namespace SrcMan
         }
         public void AddC()
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            var itemInfoArr = DBEngine.SplitFN(SrcQueue.Peek());
-            Regex numbRgx = new Regex("[0-9]");
+            var itemInfoArr = DBEngine.SplitFn(SrcQueue.Peek());
+            var numbRgx = new Regex("[0-9]");
             var itemInfo = new DBEngine.DBStore.SrcItem
             {
                 Path = SrcQueue.Peek().FullName,
@@ -467,15 +477,16 @@ namespace SrcMan
             Console.ForegroundColor = ConsoleColor.Yellow;
             var fi = SrcQueue.Dequeue();
             Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
-            fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
+
             itemInfo.Path = Path.Combine(fi.DirectoryName, sb.ToString());
+            fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
             Console.ResetColor();
         }
         public void AddC(string actorCode, string name)
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
             DBEngine.DBStore.SrcActor actor;
@@ -509,15 +520,16 @@ namespace SrcMan
             Console.Write("Add:");
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
-            fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
             item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
+            fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
+
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
             Console.ResetColor();
         }
         public void AddC(string actorCode, string name, string labels)
         {
-            if (!DB.DBCheck()) return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
             DBEngine.DBStore.SrcActor actor;
