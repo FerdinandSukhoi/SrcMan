@@ -2,16 +2,23 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using static SrcMan.SrcMan.DBEngine.DBStore;
+using MobileSuit;
+using MobileSuit.IO;
+using static SrcMan.SrcMan.DbEngine.DbStore;
 
 namespace SrcMan
 {
     partial class SrcMan
     {
-        public class FindEngine
+        public class FindEngine:IIoInteractive
         {
-            DBEngine DB { get; set; }
-            public FindEngine(DBEngine db)
+            private IoInterface Io { get; set; }
+            public void SetIo(IoInterface io)
+            {
+                Io = io;
+            }
+            DbEngine DB { get; set; }
+            public FindEngine(DbEngine db)
             {
                 DB = db;
             }
@@ -19,47 +26,35 @@ namespace SrcMan
             public void Actor(string arg0)
             {
                 if (!DB.DbCheck()) return;
-                var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0));
-                if (acts.Count()==0)
+                var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0)).ToList();
+                if (!acts?.Any()??false)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Actor found.");
-                    Console.ResetColor();
+                    Io.WriteLine("No such Actor found.", IoInterface.OutputType.Error);
                 }
                 else
                 {
                     foreach (var actr in  acts)
                     {
-                        Console.WriteLine();
-                        Console.Write("Actor ");
-                        Console.ForegroundColor = actr.Stared?ConsoleColor.Green: ConsoleColor.DarkGreen;
-                        Console.Write(actr.Name);
-                        Console.ResetColor();
-                        Console.Write(" Index ");
-                        Console.ForegroundColor = actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen;
-                        Console.Write(DBEngine.GetActorCode(actr.Index));
-                        Console.ResetColor();
-                        Console.Write(" with ");
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.Write(actr.Items.Count);
-                        Console.ResetColor();
-                        Console.Write(" Items:\n");
+                        Io.WriteLine("");
+                        Io.Write("Actor ");
+                        Io.Write(actr.Name,default, actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen);
+                        Io.Write(" Index ");
+                        Io.Write(DbEngine.GetActorCode(actr.Index),default, actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen);
+                        Io.Write(" with ");
+                        Io.Write(actr.Items.Count.ToString(),default, ConsoleColor.DarkGreen);
+                        Io.Write(" Items:\n");
                         foreach (var item in actr.Items)
                         {
-                            Console.ForegroundColor = item.Stared ?ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                            Console.Write($"\t {item.Name}\t");
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
+                            Io.Write($"\t {item.Name}\t",default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                            Io.Write($"{DbEngine.GetItemCode(item.Index)}\t",default, ConsoleColor.Cyan);
                             if (item.Labels.Count > 0)
                             {
-                                Console.ForegroundColor = ConsoleColor.Blue;
                                 foreach (var label in item.Labels)
                                 {
-                                    Console.Write($" {label}");
+                                    Io.Write($" {label}",default, ConsoleColor.Blue);
                                 }
                             }
-                            Console.Write("\n");
-                            Console.ResetColor();
+                            Io.Write("\n");
 
                         }
                     }
@@ -71,47 +66,39 @@ namespace SrcMan
             public void Actor(string arg0, string arg1)
             {
                 if (!DB.DbCheck()) return;
-                var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0) && a.Name.Contains(arg1));
-                if (acts.Count() == 0)
+                var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0) && a.Name.Contains(arg1)).ToList();
+                if (!acts.Any())
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Actor found.");
-                    Console.ResetColor();
+                    Io.WriteLine("No such Actor found.",IoInterface.OutputType.Error);
                 }
                 else
                 {
                     foreach (var actr in acts)
                     {
-                        Console.WriteLine();
-                        Console.Write("Actor ");
-                        Console.ForegroundColor = actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen;
-                        Console.Write(actr.Name);
-                        Console.ResetColor();
-                        Console.Write(" Index ");
-                        Console.ForegroundColor = actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen;
-                        Console.Write(DBEngine.GetActorCode(actr.Index));
-                        Console.ResetColor();
-                        Console.Write(" with ");
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.Write(actr.Items.Count);
-                        Console.ResetColor();
-                        Console.Write(" Items:\n");
+                        Io.WriteLine("");
+                        Io.Write("Actor ");
+                        Io.Write(actr.Name,default, actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen);
+                        Io.Write(" Index ");
+                        Io.Write(DbEngine.GetActorCode(actr.Index), default, actr.Stared ? ConsoleColor.Green : ConsoleColor.DarkGreen);
+                        Io.Write(" with ");
+                        
+                        Io.Write(actr.Items.Count.ToString(), default, ConsoleColor.DarkGreen);
+                        
+                        Io.Write(" Items:\n");
                         foreach (var item in actr.Items)
                         {
-                            Console.ForegroundColor = item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                            Console.Write($"\t {item.Name}\t");
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
+                            Io.Write($"\t {item.Name}\t", default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                            Io.Write($"{DbEngine.GetItemCode(item.Index)}\t", default, ConsoleColor.Cyan);
                             if (item.Labels.Count > 0)
                             {
-                                Console.ForegroundColor = ConsoleColor.Blue;
+                                
                                 foreach (var label in item.Labels)
                                 {
-                                    Console.Write($" {label}");
+                                    Io.Write($" {label}", default, ConsoleColor.Blue);
                                 }
                             }
-                            Console.Write("\n");
-                            Console.ResetColor();
+                            Io.Write("\n");
+                            
 
                         }
                     }
@@ -127,42 +114,42 @@ namespace SrcMan
 
                 if (lbs.Count() == 0)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Item(s) found.");
-                    Console.ResetColor();
+                    
+                    Io.WriteLine("No such Item(s) found.", default, ConsoleColor.Red);
+                    
                 }
                 else
                 {
                     foreach (var lb in lbs)
                     {
-                        Console.WriteLine();
-                        Console.Write("Label ");
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.Write(lb.Name);
-                        Console.ResetColor();
-                        Console.Write(" with ");
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.Write(lb.Items.Count);
-                        Console.ResetColor();
-                        Console.Write(" Items:\n");
+                        Io.WriteLine("");
+                        Io.Write("Label ");
+                        
+                        Io.Write(lb.Name, default, ConsoleColor.DarkGreen);
+                        
+                        Io.Write(" with ");
+                        
+                        Io.Write(lb.Items.Count.ToString(), default, ConsoleColor.DarkGreen);
+                        
+                        Io.Write(" Items:\n");
                         foreach (var item in lb.Items)
                         {
-                            Console.ForegroundColor = item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                            Console.Write($"\t {item.Name}\t");
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
-                            Console.ForegroundColor = ConsoleColor.Magenta;
-                            Console.Write($"{item.Actress.Name}\t");
+                            
+                            Io.Write($"\t {item.Name}\t", default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                            
+                            Io.Write($"{DbEngine.GetItemCode(item.Index)}\t", default, ConsoleColor.Cyan);
+                            
+                            Io.Write($"{item.Actress.Name}\t", default, ConsoleColor.Magenta);
                             if (item.Labels.Count > 0)
                             {
-                                Console.ForegroundColor = ConsoleColor.Blue;
+                                
                                 foreach (var label in item.Labels)
                                 {
-                                    Console.Write($" {label}");
+                                    Io.Write($" {label}", default, ConsoleColor.Blue);
                                 }
                             }
-                            Console.Write("\n");
-                            Console.ResetColor();
+                            Io.Write("\n");
+                            
 
                         }
                     }
@@ -178,30 +165,30 @@ namespace SrcMan
 
                 if (itms.Count() == 0)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Item(s) found.");
-                    Console.ResetColor();
+                    
+                    Io.WriteLine("No such Item(s) found.",IoInterface.OutputType.Error);
+                    
                 }
                 else
                 {
                     foreach (var item in itms)
                     {
-                        Console.ForegroundColor = item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                        Console.Write($"\t {item.Name}\t");
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.Write($"{item.Actress.Name}\t");
+                        
+                        Io.Write($"\t {item.Name}\t", default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                        
+                        Io.Write($"{DbEngine.GetItemCode(item.Index)}\t", default, ConsoleColor.Cyan);
+                        
+                        Io.Write($"{item.Actress.Name}\t", default, ConsoleColor.Magenta);
                         if (item.Labels.Count > 0)
                         {
-                            Console.ForegroundColor = ConsoleColor.Blue;
+                            
                             foreach (var label in item.Labels)
                             {
-                                Console.Write($" {label}");
+                                Io.Write($" {label}", default, ConsoleColor.Blue);
                             }
                         }
-                        Console.Write("\n");
-                        Console.ResetColor();
+                        Io.Write("\n");
+                        
                     }
                 }
 
@@ -212,34 +199,34 @@ namespace SrcMan
             {
                 if (!DB.DbCheck()) return;
                 var itms = DB.Store.Items.Where(a => a.Labels.Contains(arg0.ToUpper()) 
-                && a.Labels.Contains(arg1.ToUpper()) && a.Labels.Contains(arg2.ToUpper()));
+                && a.Labels.Contains(arg1.ToUpper()) && a.Labels.Contains(arg2.ToUpper())).ToList();
 
-                if (itms.Count() == 0)
+                if (!itms.Any())
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Item(s) found.");
-                    Console.ResetColor();
+                    
+                    Io.WriteLine("No such Item(s) found.",IoInterface.OutputType.Error);
+                    
                 }
                 else
                 {
                     foreach (var item in itms)
                     {
-                        Console.ForegroundColor = item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                        Console.Write($"\t {item.Name}\t");
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.Write($"{item.Actress.Name}\t");
+                        
+                        Io.Write($"\t {item.Name}\t", default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                        
+                        Io.Write($"{DbEngine.GetItemCode(item.Index)}\t", default, ConsoleColor.Cyan);
+                        
+                        Io.Write($"{item.Actress.Name}\t", default, ConsoleColor.Magenta);
                         if (item.Labels.Count > 0)
                         {
-                            Console.ForegroundColor = ConsoleColor.Blue;
+                            ;
                             foreach (var label in item.Labels)
                             {
-                                Console.Write($" {label}");
+                                Io.Write($" {label}", default, ConsoleColor.Blue);
                             }
                         }
-                        Console.Write("\n");
-                        Console.ResetColor();
+                        Io.Write("\n");
+                        
                     }
                 }
 
@@ -249,36 +236,35 @@ namespace SrcMan
             public void Item(string arg0)
             {
                 if (!DB.DbCheck()) return;
-                var itms = DB.Store.Items.Where(a => a.Name.Contains(arg0.ToUpper()));
+                var itms = DB.Store.Items.Where(a => a.Name.Contains(arg0.ToUpper())).ToList();
 
-                if (itms.Count() == 0)
+                if (!itms.Any())
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Item(s) found.");
-                    Console.ResetColor();
+                    Io.WriteLine("No such Item(s) found.", default, ConsoleColor.Red);
+                    
                 }
                 else
                 {
                     foreach (var item in itms)
                     {
-                        Console.ForegroundColor = item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                        Console.Write($"\t {item.Name}\t ");
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.Write($"{item.Actress.Name}\t");
+                        ;
+                        Io.Write($"\t {item.Name}\t ", default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                        ;
+                        Io.Write($"{DbEngine.GetItemCode(item.Index)}\t", default, ConsoleColor.Cyan);
+                        ;
+                        Io.Write($"{item.Actress.Name}\t", default, ConsoleColor.Magenta);
                         if (item.Labels.Count > 0)
                         {
-                            Console.ForegroundColor = ConsoleColor.Blue;
+                            ;
                             foreach (var label in item.Labels)
                             {
-                                Console.Write($" {label}");
+                                Io.Write($" {label}", default, ConsoleColor.Blue);
                             }
                         }
 
 
-                        Console.Write("\n");
-                        Console.ResetColor();
+                        Io.Write("\n");
+                        
                     }
                 }
 
@@ -288,34 +274,30 @@ namespace SrcMan
             public void Item(string arg0, string arg1)
             {
                 if (!DB.DbCheck()) return;
-                var itms = DB.Store.Items.Where(a => a.Name.Contains(arg0.ToUpper()) && a.Name.Contains(arg1.ToUpper()));
+                var items = DB.Store.Items.Where(a => a.Name.Contains(arg0.ToUpper()) && a.Name.Contains(arg1.ToUpper())).ToList();
 
-                if (itms.Count() == 0)
+                if (!items.Any())
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No such Item(s) found.");
-                    Console.ResetColor();
+                    
+                    Io.WriteLine("No such Item(s) found.",IoInterface.OutputType.Error);
+                    
                 }
                 else
                 {
-                    foreach (var item in itms)
+                    foreach (var item in items)
                     {
-                        Console.ForegroundColor = item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow;
-                        Console.Write($"\t {item.Name}\t");
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.Write($"{DBEngine.GetItemCode(item.Index)}\t");
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.Write($"{item.Actress.Name}\t");
+                        Io.Write($"\t {item.Name}\t", default, item.Stared ? ConsoleColor.Yellow : ConsoleColor.DarkYellow);
+                        Io.Write($"{DbEngine.GetItemCode(item.Index)}\t", default, ConsoleColor.Cyan);
+                        Io.Write($"{item.Actress.Name}\t", default, ConsoleColor.Magenta);
                         if (item.Labels.Count > 0)
                         {
-                            Console.ForegroundColor = ConsoleColor.Blue;
                             foreach (var label in item.Labels)
                             {
-                                Console.Write($" {label}");
+                                Io.Write($" {label}", default, ConsoleColor.Blue);
                             }
                         }
-                        Console.Write("\n");
-                        Console.ResetColor();
+                        Io.Write("\n");
+                        
                     }
                 }
 

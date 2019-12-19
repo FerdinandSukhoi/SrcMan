@@ -6,19 +6,22 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using MobileSuit;
+using MobileSuit.IO;
+using Newtonsoft.Json;
 
 namespace SrcMan
 {
     [MobileSuitInfo("Source Manager")]
-    public partial class SrcMan
+    public partial class SrcMan : IIoInteractive
     {
         private readonly string[] SrcExt = new string[] { ".mp4", ".wmv", ".avi", ".mkv", ".rmvb" };
         private Queue<FileInfo> SrcQueue { get; set; }
         [MobileSuitInfo("Configs")]
         public SrcManBase.Config ConfigData { get; set; }
         public string ConfigPath { get; set; }
-        public DBEngine DB { get; set; }
-        public FindEngine Find { get; set; }
+        public DbEngine DB { get; set; }
+        private FindEngine FindHandler { get; set; }
+
         //public MTPEngine MTP { get; set; }
         public SrcMan()
         {
@@ -28,25 +31,25 @@ namespace SrcMan
             }
             else
             {
-                Console.WriteLine("InputPath of 'SrcManConfig.json', Leave empty to use current path");
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write("Path of 'SrcManConfig.json'>");
-                Console.ResetColor();
-                ConfigPath = Path.Combine(Console.ReadLine(), "SrcManConfig.json");
+                Io.WriteLine("");
+
+                ConfigPath = Path.Combine(Io.ReadLine("InputPath of 'SrcManConfig.json', Leave empty to use current path",
+                    default, true, ConsoleColor.Yellow), "SrcManConfig.json");
             }
-            
-            
+
+
             if (!File.Exists(ConfigPath))
             {
-                Console.WriteLine("File Not Found. Use 'init' or 'loadcfg' command to initialize.");
+                Io.WriteLine("File Not Found. Use 'init' or 'loadcfg' command to initialize.", IoInterface.OutputType.Error);
             }
             else
             {
                 ConfigData = Newtonsoft.Json.JsonConvert.DeserializeObject<SrcManBase.Config>(File.ReadAllText(ConfigPath));
             }
-            DB = new DBEngine(ConfigData);
+            DB = new DbEngine(ConfigData);
+
             Load();
-            Find = new FindEngine(DB);
+            FindHandler = new FindEngine(DB);
             //MTP = new MTPEngine(DB, ConfigData);
         }
         public void Init()
@@ -57,80 +60,56 @@ namespace SrcMan
         }
         public void Config()
         {
-            string buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter Source Dirctory\n(Now={0})>",ConfigData.DataPath);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.DataPath = buf == "" ? ConfigData.DataPath:buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter ConfigFiles Dirctory\n(Now={0})>", ConfigData.ConfigPath);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.ConfigPath = buf == "" ? ConfigData.ConfigPath : buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter CacheFiles Dirctory\n(Now={0})>", ConfigData.CachePath);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.CachePath = buf == "" ? ConfigData.CachePath : buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter ConvertFiles Dirctory\n(Now={0})>", ConfigData.ConvertPath);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.ConvertPath = buf == "" ? ConfigData.ConvertPath : buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter Pull Path\n(Now={0})>", ConfigData.PullFilePath);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.PullFilePath = buf == "" ? ConfigData.PullFilePath : buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter MTP Device Name (May use 'MTP List' command to get)\n(Now={0})>", ConfigData.MTPDeviceName);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.MTPDeviceName = buf == "" ? ConfigData.MTPDeviceName : buf;
-
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Enter MTP Device Directory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={0})>", ConfigData.MTPDirctoryPath);
-            Console.ResetColor();
-            buf = Console.ReadLine();
-            ConfigData.MTPDirctoryPath = buf == "" ? ConfigData.MTPDirctoryPath : buf;
-
-            Console.WriteLine();
-            Console.WriteLine("Now:");
-            Console.WriteLine($"DataFiles Directory={ConfigData.DataPath}");
-            Console.WriteLine($"ConfigFiles Directory={ConfigData.ConfigPath}");
-            Console.WriteLine($"CacheFiles Directory={ConfigData.CachePath}");
-            Console.WriteLine($"ConvertFiles Directory={ConfigData.ConvertPath}");
-            Console.WriteLine($"Pull Files Directory={ConfigData.PullFilePath}");
-            Console.WriteLine($"MTP Device Name={ConfigData.MTPDeviceName}");
-            Console.WriteLine($"MTP Device Directory Path={ConfigData.MTPDirctoryPath}");
-            Console.WriteLine();
-            
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write("All OK?(input y to save)>");
-            Console.ResetColor();
-            if (Console.ReadLine().ToLower()=="y")
+            ConfigData.DataPath = Io.ReadLine($"Enter Source Directory\n(Now={ConfigData.DataPath})>", ConfigData.DataPath, true, ConsoleColor.Blue);
+            ConfigData.ConfigPath = Io.ReadLine($"Enter ConfigFiles Directory\n(Now={ConfigData.ConfigPath})", ConfigData.ConfigPath, true, ConsoleColor.Blue);
+            ConfigData.CachePath = Io.ReadLine($"Enter CacheFiles Directory\n(Now={ConfigData.CachePath})", ConfigData.CachePath, true, ConsoleColor.Blue);
+            ConfigData.ConvertPath = Io.ReadLine($"Enter ConvertFiles Directory\n(Now={ConfigData.ConvertPath})", ConfigData.ConvertPath, true, ConsoleColor.Blue);
+            ConfigData.PullFilePath = Io.ReadLine($"Enter Pull Path\n(Now={ConfigData.PullFilePath})", ConfigData.PullFilePath, true, ConsoleColor.Blue);
+            ConfigData.MTPDeviceName = Io.ReadLine($"Enter MTP Device Name (May use 'MTP List' command to get)\n(Now={ConfigData.MTPDeviceName})", ConfigData.MTPDeviceName, true, ConsoleColor.Blue);
+            ConfigData.MTPDirectoryPath = Io.ReadLine($"Enter MTP Device Directory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={ConfigData.MTPDirectoryPath})", ConfigData.MTPDirectoryPath, true, ConsoleColor.Blue);
+            Io.WriteLine("");
+            Io.WriteLine("Now:");
+            Io.WriteLine($"DataFiles Directory={ConfigData.DataPath}");
+            Io.WriteLine($"ConfigFiles Directory={ConfigData.ConfigPath}");
+            Io.WriteLine($"CacheFiles Directory={ConfigData.CachePath}");
+            Io.WriteLine($"ConvertFiles Directory={ConfigData.ConvertPath}");
+            Io.WriteLine($"Pull Files Directory={ConfigData.PullFilePath}");
+            Io.WriteLine($"MTP Device Name={ConfigData.MTPDeviceName}");
+            Io.WriteLine($"MTP Device Directory Path={ConfigData.MTPDirectoryPath}");
+            Io.WriteLine("");
+            if (Io.ReadLine("All OK?(default input y to save)", "y", true, ConsoleColor.Yellow).ToLower() == "y")
             {
                 File.WriteAllText(ConfigPath, Newtonsoft.Json.JsonConvert.SerializeObject(ConfigData));
             }
         }
         public void Load()
-            => DB.Load();
+        {
+            DB.Load();
+            var cvtSetPath = Path.Combine(ConfigData.ConfigPath, "CvtSet.json");
+            ConvertFiles = File.Exists(cvtSetPath) ? 
+                JsonConvert
+                .DeserializeObject<HashSet<DbEngine.DbStore.SrcItem>>
+                    (File.ReadAllText(cvtSetPath)) 
+                : new HashSet<DbEngine.DbStore.SrcItem>();
+        }
+
         public void Sav()
             => Save();
+
         public void Save()
-            => DB.Save();
+        {
+            DB.Save();
+            File.WriteAllText(Path.Combine(ConfigData.ConfigPath, "CvtSet.json"),
+                JsonConvert.SerializeObject(ConvertFiles));
+        }
+
         public void Upd()
             => Update();
         public void Update()
-            => DB.Format();
-        public void EnQ() 
+        {
+            if (ConvertCheck()) DB.Format();
+        }
+        public void EnQ()
             => EnQueueAll();
         //public void Sync(string itemCode)
         //    => MTP.Sync(itemCode);
@@ -138,6 +117,52 @@ namespace SrcMan
         //    => MTP.DeSync(itemCode);
         //public void Push()
         //    => MTP.Push();
+        public void Find(string arg0)
+        {
+            FindHandler.I(arg0);
+            FindHandler.A(arg0);
+            FindHandler.L(arg0);
+        }
+        public void Find(string arg0, string arg1)
+        {
+            FindHandler.I(arg0, arg1);
+            FindHandler.A(arg0, arg1);
+            FindHandler.L(arg0, arg1);
+        }
+        public void Find(string arg0, string arg1, string arg2)
+        {
+
+            FindHandler.L(arg0, arg1, arg2);
+        }
+
+        public void Play(string itemId)
+        {
+            if (!DB.DbCheck()) return;
+            Save();
+            var regex = new Regex("[A-Z][A-Z][0-9][0-9]");
+            itemId = itemId.ToUpper();
+            var item = regex.IsMatch(itemId)
+                ? DB.Store.Actors?
+                    .FirstOrDefault(a => a.Index == 26 * (itemId[0] - 'A') + itemId[1] - 'A')?.Items
+                    .FirstOrDefault(i =>
+                        i.Index == 100 * (26 * (itemId[0] - 'A') + itemId[1] - 'A') + 10 * (itemId[2] - '0') +
+                        itemId[3] - '0')
+                : DB.Store.Items.FirstOrDefault(i => i.Name.Contains(itemId));
+            if (item is null)
+            {
+                Io.WriteLine("No Such Item.", IoInterface.OutputType.Error);
+                return;
+            }
+            var player = new Process
+            {
+                StartInfo =
+                {
+                    FileName = @"C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe", Arguments = item.Path
+                }
+            };
+            player.Start();
+
+        }
         public void Pull()
         {
             if (!DB.DbCheck()) return;
@@ -145,7 +170,7 @@ namespace SrcMan
             foreach (var item in (new DirectoryInfo(ConfigData.PullFilePath)).GetFiles())
             {
                 var itemInfoArr = item.FullName.Replace(item.Extension, "").Split("-");
-                var itemInfo = new DBEngine.DBStore.SrcItem
+                var itemInfo = new DbEngine.DbStore.SrcItem
                 {
                     Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
                     ? $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}-{itemInfoArr[4]}"
@@ -153,10 +178,10 @@ namespace SrcMan
 
 
                 };
-                DBEngine.DBStore.SrcActor actor;
+                DbEngine.DbStore.SrcActor actor;
                 if (!DB.Store.Actors.Contains(itemInfoArr[1]))
                 {
-                    actor = new DBEngine.DBStore.SrcActor();
+                    actor = new DbEngine.DbStore.SrcActor();
                     actor.Name = itemInfoArr[1];
                     actor.Index = DB.Store.Actors.Count;
 
@@ -178,7 +203,7 @@ namespace SrcMan
                             itemInfo.Labels.Add(label.ToUpper());
                             if (!DB.Store.Labels.Contains(label.ToUpper()))
                             {
-                                DB.Store.Labels.Add(new DBEngine.DBStore.SrcLabel() { Name = label.ToUpper() });
+                                DB.Store.Labels.Add(new DbEngine.DbStore.SrcLabel() { Name = label.ToUpper() });
                             }
                             DB.Store.Labels[label.ToUpper()].Items.Add(itemInfo);
                         }
@@ -194,73 +219,60 @@ namespace SrcMan
 
 
                 DB.Store.Init();
-                var sb = new StringBuilder($"{ DBEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
+                var sb = new StringBuilder($"{ DbEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
                 sb.Append(item.Extension);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("Pulled:");
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{item.FullName}\n>>\n{sb.ToString()}");
+                Io.Write("Pulled:", default, ConsoleColor.Green);
+                Io.WriteLine($"{item.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
                 item.MoveTo(Path.Combine(item.DirectoryName, sb.ToString()));
                 itemInfo.Path = Path.Combine(item.DirectoryName, sb.ToString());
-                Console.ResetColor();
+
             }
 
             Update();
         }
         private bool QueueCheck()
         {
-            if (SrcQueue?.Count==0)
+            if (SrcQueue?.Count == 0)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Cache Queue not loaded, use 'EnqueueAll'.");
-                Console.ResetColor();
+                Io.WriteLine("Cache Queue not loaded, use 'EnqueueAll'.", IoInterface.OutputType.Error);
+
                 return false;
             }
             return true;
         }
-        private Regex ActorCodeRegex = new Regex("[A-Z][A-Z]");
+        private Regex ActorCodeRegex { get; } = new Regex("[A-Z][A-Z]");
         public void Peek()
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.Write("Peek:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Io.Write("Peek:", default, ConsoleColor.Blue);
             var rmf = SrcQueue.Peek();
-            Console.WriteLine($"{rmf.FullName}");
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"Size:{(rmf.Length >> 20)}MB");
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"{rmf.FullName}", default, ConsoleColor.Yellow);
+            Io.WriteLine($"Size:{(rmf.Length >> 20)}MB", default, ConsoleColor.DarkMagenta);
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
         public void Jump()
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            Console.ForegroundColor = ConsoleColor.DarkBlue;
-            Console.Write("Jump:");
-            Console.ForegroundColor = ConsoleColor.DarkRed;
+            Io.Write("Jump:", default, ConsoleColor.DarkBlue);
             var rmf = SrcQueue.Dequeue();
-            Console.WriteLine($"{rmf.FullName}");
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"{rmf.FullName}", default, ConsoleColor.DarkRed);
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
         public void Jmp() => Jump();
         public void Remove()
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("Remove:");
-            Console.ForegroundColor = ConsoleColor.Blue;
+            Io.Write("Remove:", default, ConsoleColor.Red);
             var rmf = SrcQueue.Dequeue();
-            Console.WriteLine($"{rmf.FullName}");
+            Io.WriteLine($"{rmf.FullName}", default, ConsoleColor.Blue);
             rmf.Delete();
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
         public void Rm()
             => Remove();
@@ -268,21 +280,21 @@ namespace SrcMan
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            var itemInfoArr = DBEngine.SplitFn(SrcQueue.Peek());
+            var itemInfoArr = DbEngine.SplitFn(SrcQueue.Peek());
             Regex numbRgx = new Regex("[0-9]");
-            var itemInfo = new DBEngine.DBStore.SrcItem
+            var itemInfo = new DbEngine.DbStore.SrcItem
             {
                 Path = SrcQueue.Peek().FullName,
                 Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
                 ? $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}-{itemInfoArr[4]}"
                 : $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}",
-                
-                
+
+
             };
-            SrcMan.DBEngine.DBStore.SrcActor actor;
+            SrcMan.DbEngine.DbStore.SrcActor actor;
             if (!DB.Store.Actors.Contains(itemInfoArr[1]))
             {
-                actor = new DBEngine.DBStore.SrcActor();
+                actor = new DbEngine.DbStore.SrcActor();
                 actor.Name = itemInfoArr[1];
                 actor.Index = DB.Store.Actors.Count;
 
@@ -302,7 +314,7 @@ namespace SrcMan
                     itemInfo.Labels.Add(label.ToUpper());
                     if (!DB.Store.Labels.Contains(label.ToUpper()))
                     {
-                        DB.Store.Labels.Add(new DBEngine.DBStore.SrcLabel() { Name = label.ToUpper() });
+                        DB.Store.Labels.Add(new DbEngine.DbStore.SrcLabel() { Name = label.ToUpper() });
                     }
                     DB.Store.Labels[label.ToUpper()].Items.Add(itemInfo);
                 }
@@ -310,25 +322,22 @@ namespace SrcMan
             itemInfo.Stared = itemInfo.Labels.Contains("M");
 
             DB.Store.Init();
-            var sb = new StringBuilder($"{ DBEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
+            var sb = new StringBuilder($"{ DbEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
             sb.Append(SrcQueue.Peek().Extension);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Add:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Io.Write("Add:", default, ConsoleColor.Green);
             var fi = SrcQueue.Dequeue();
-            Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
+            Io.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
             fi.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
             itemInfo.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
         public void Add(string actorCode, string name)
         {
-            if(!DB.DbCheck())return;
+            if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
-            DBEngine.DBStore.SrcActor actor;
+            DbEngine.DbStore.SrcActor actor;
             if (ActorCodeRegex.IsMatch(actorCode))
             {
                 var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
@@ -340,37 +349,37 @@ namespace SrcMan
             }
             if (actor == null)
             {
-                actor = new DBEngine.DBStore.SrcActor();
+                actor = new DbEngine.DbStore.SrcActor();
                 actor.Name = actorCode;
                 actor.Index = DB.Store.Actors.Count;
 
                 DB.Store.Actors.Add(actor);
             }
-            var item = new DBEngine.DBStore.SrcItem();
+            var item = new DbEngine.DbStore.SrcItem();
             var fi = SrcQueue.Dequeue();
 
             item.Name = name;
             item.Index = 100 * actor.Index + actor.Items.Count;
             actor.Items.Add(item);
             DB.Store.Init();
-            var sb = new StringBuilder($"{ DBEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
+            var sb = new StringBuilder($"{ DbEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
             sb.Append(fi.Extension);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Add:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
+            Io.Write("Add:", default, ConsoleColor.Green);
+            Io.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
             fi.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
             item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
+
+        private HashSet<DbEngine.DbStore.SrcItem> ConvertFiles { set; get; }
+
         public void Add(string actorCode, string name, string labels)
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
-            DBEngine.DBStore.SrcActor actor;
+            DbEngine.DbStore.SrcActor actor;
             if (ActorCodeRegex.IsMatch(actorCode))
             {
                 var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
@@ -382,13 +391,13 @@ namespace SrcMan
             }
             if (actor == null)
             {
-                actor = new DBEngine.DBStore.SrcActor();
+                actor = new DbEngine.DbStore.SrcActor();
                 actor.Name = actorCode;
                 actor.Index = DB.Store.Actors.Count;
 
                 DB.Store.Actors.Add(actor);
             }
-            var item = new DBEngine.DBStore.SrcItem();
+            var item = new DbEngine.DbStore.SrcItem();
             var fi = SrcQueue.Dequeue();
             item.Path = fi.FullName;
             item.Name = name;
@@ -405,7 +414,7 @@ namespace SrcMan
             }
             actor.Items.Add(item);
             DB.Store.Init();
-            var sb = new StringBuilder($"{ DBEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
+            var sb = new StringBuilder($"{ DbEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
             if (item.Labels.Count != 0)
             {
                 foreach (var label in item.Labels)
@@ -414,23 +423,20 @@ namespace SrcMan
                 }
             }
             sb.Append(fi.Extension);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Add:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
+            Io.Write("Add:", default, ConsoleColor.Green);
+            Io.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
             fi.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
             item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
         public void AddC()
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
-            var itemInfoArr = DBEngine.SplitFn(SrcQueue.Peek());
+            var itemInfoArr = DbEngine.SplitFn(SrcQueue.Peek());
             var numbRgx = new Regex("[0-9]");
-            var itemInfo = new DBEngine.DBStore.SrcItem
+            var itemInfo = new DbEngine.DbStore.SrcItem
             {
                 Path = SrcQueue.Peek().FullName,
                 Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
@@ -439,10 +445,10 @@ namespace SrcMan
 
 
             };
-            SrcMan.DBEngine.DBStore.SrcActor actor;
+            SrcMan.DbEngine.DbStore.SrcActor actor;
             if (!DB.Store.Actors.Contains(itemInfoArr[1]))
             {
-                actor = new DBEngine.DBStore.SrcActor();
+                actor = new DbEngine.DbStore.SrcActor();
                 actor.Name = itemInfoArr[1];
                 actor.Index = DB.Store.Actors.Count;
 
@@ -462,7 +468,7 @@ namespace SrcMan
                     itemInfo.Labels.Add(label.ToUpper());
                     if (!DB.Store.Labels.Contains(label.ToUpper()))
                     {
-                        DB.Store.Labels.Add(new DBEngine.DBStore.SrcLabel() { Name = label.ToUpper() });
+                        DB.Store.Labels.Add(new DbEngine.DbStore.SrcLabel() { Name = label.ToUpper() });
                     }
                     DB.Store.Labels[label.ToUpper()].Items.Add(itemInfo);
                 }
@@ -470,87 +476,109 @@ namespace SrcMan
             itemInfo.Stared = itemInfo.Labels.Contains("M");
 
             DB.Store.Init();
-            var sb = new StringBuilder($"{ DBEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
+            var sb = new StringBuilder($"{ DbEngine.GetItemCode(itemInfo.Index) }-{actor.Name}-{itemInfo.Name}");
             sb.Append(SrcQueue.Peek().Extension);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Add:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Io.Write("Add:", default, ConsoleColor.Green);
             var fi = SrcQueue.Dequeue();
-            Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
+            Io.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
 
             itemInfo.Path = Path.Combine(fi.DirectoryName, sb.ToString());
+            ConvertFiles.Add(itemInfo);
             fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
+        }
+
+        public bool ConvertCheck()
+        {
+            var rmStk = new Stack<DbEngine.DbStore.SrcItem>();
+            foreach (var convertFile in ConvertFiles)
+            {
+                if (File.Exists(convertFile.Path))
+                {
+                    rmStk.Push(convertFile);
+
+                }
+                else
+                {
+                    Io.WriteLine($"Converting File {convertFile.Name}", IoInterface.OutputType.Error);
+                    return false;
+                }
+            }
+
+            while (rmStk.Any())
+            {
+                ConvertFiles.Remove(rmStk.Pop());
+            }
+            File.WriteAllText(Path.Combine(ConfigData.ConfigPath, "CvtSet.json"),
+                JsonConvert.SerializeObject(ConvertFiles));
+            return true;
         }
         public void AddC(string actorCode, string name)
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
-            DBEngine.DBStore.SrcActor actor;
+            DbEngine.DbStore.SrcActor actor;
             if (ActorCodeRegex.IsMatch(actorCode))
             {
                 var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
-                actor = DB.Store.Actors.Where(a => a.Index == index).FirstOrDefault();
+                actor = DB.Store.Actors.FirstOrDefault(a => a.Index == index);
             }
             else
             {
-                actor = DB.Store.Actors.Where(a => a.Name.Contains(actorCode)).FirstOrDefault();
+                actor = DB.Store.Actors.FirstOrDefault(a => a.Name.Contains(actorCode));
             }
             if (actor == null)
             {
-                actor = new DBEngine.DBStore.SrcActor();
+                actor = new DbEngine.DbStore.SrcActor();
                 actor.Name = actorCode;
                 actor.Index = DB.Store.Actors.Count;
 
                 DB.Store.Actors.Add(actor);
             }
-            var item = new DBEngine.DBStore.SrcItem();
+            var item = new DbEngine.DbStore.SrcItem();
             var fi = SrcQueue.Dequeue();
 
             item.Name = name;
             item.Index = 100 * actor.Index + actor.Items.Count;
             actor.Items.Add(item);
             DB.Store.Init();
-            var sb = new StringBuilder($"{ DBEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
+            var sb = new StringBuilder($"{ DbEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
             sb.Append(fi.Extension);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Add:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
+            Io.Write("Add:", default, ConsoleColor.Green);
+            Io.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
             item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
+            ConvertFiles.Add(item);
             fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
-
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
         }
         public void AddC(string actorCode, string name, string labels)
         {
             if (!DB.DbCheck()) return;
             if (!QueueCheck()) return;
             actorCode = actorCode.ToUpper();
-            DBEngine.DBStore.SrcActor actor;
+            DbEngine.DbStore.SrcActor actor;
             if (ActorCodeRegex.IsMatch(actorCode))
             {
                 var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
-                actor = DB.Store.Actors.Where(a => a.Index == index).FirstOrDefault();
+                actor = DB.Store.Actors.FirstOrDefault(a => a.Index == index);
             }
             else
             {
-                actor = DB.Store.Actors.Where(a => a.Name.Contains(actorCode)).FirstOrDefault();
+                actor = DB.Store.Actors.FirstOrDefault(a => a.Name.Contains(actorCode));
             }
             if (actor == null)
             {
-                actor = new DBEngine.DBStore.SrcActor();
-                actor.Name = actorCode;
-                actor.Index = DB.Store.Actors.Count;
+                actor = new DbEngine.DbStore.SrcActor
+                {
+                    Name = actorCode,
+                    Index = DB.Store.Actors.Count
+                };
 
                 DB.Store.Actors.Add(actor);
             }
-            var item = new DBEngine.DBStore.SrcItem();
+            var item = new DbEngine.DbStore.SrcItem();
             var fi = SrcQueue.Dequeue();
             item.Path = fi.FullName;
             item.Name = name;
@@ -567,7 +595,7 @@ namespace SrcMan
             }
             actor.Items.Add(item);
             DB.Store.Init();
-            var sb = new StringBuilder($"{ DBEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
+            var sb = new StringBuilder($"{ DbEngine.GetItemCode(item.Index) }-{actor.Name}-{item.Name}");
             if (item.Labels.Count != 0)
             {
                 foreach (var label in item.Labels)
@@ -576,15 +604,14 @@ namespace SrcMan
                 }
             }
             sb.Append(fi.Extension);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("Add:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}");
-            fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
+            Io.Write("Add:", default, ConsoleColor.Green);
+            Io.WriteLine($"{fi.FullName}\n>>\n{sb.ToString()}", default, ConsoleColor.Yellow);
+            ConvertFiles.Add(item);
             item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count}] Items Remaining.");
-            Console.ResetColor();
+            fi.MoveTo(Path.Combine(ConfigData.ConvertPath, sb.ToString()));
+
+            Io.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+
         }
 
         public void Play()
@@ -594,18 +621,18 @@ namespace SrcMan
                 return;
             }
             var src = SrcQueue.Peek();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write("Play:");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{src.FullName}");
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"Size:{(src.Length>>20)}MB");
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{SrcQueue.Count-1}] Items Remaining.");
-            Console.ResetColor();
-            var player = new Process();
-            player.StartInfo.FileName = @"C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe";
-            player.StartInfo.Arguments = src.FullName;
+            Io.Write("Play:", default, ConsoleColor.Cyan);
+            Io.WriteLine($"{src.FullName}", default, ConsoleColor.Yellow);
+            Io.WriteLine($"Size:{(src.Length >> 20)}MB", default, ConsoleColor.DarkMagenta);
+            Io.WriteLine($"[{SrcQueue.Count - 1}] Items Remaining.", default, ConsoleColor.Magenta);
+
+            var player = new Process
+            {
+                StartInfo =
+                {
+                    FileName = @"C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe", Arguments = src.FullName
+                }
+            };
             player.Start();
         }
         public void EnQueueAll()
@@ -617,20 +644,16 @@ namespace SrcMan
                 if (SrcExt.Contains(file.Extension.ToLower()))
                 {
                     SrcQueue.Enqueue(file);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Write("Enqueued:");
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine(file.FullName);
-                    Console.ResetColor();
+                    Io.Write("Enqueued:", default, ConsoleColor.Green);
+                    Io.WriteLine(file.FullName, default, ConsoleColor.Yellow);
+
                 }
                 else
                 {
                     file.Delete();
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Removed:");
-                    Console.ForegroundColor = ConsoleColor.Blue;
-                    Console.WriteLine(file.FullName);
-                    Console.ResetColor();
+                    Io.Write("Removed:", default, ConsoleColor.Red);
+                    Io.WriteLine(file.FullName, default, ConsoleColor.Blue);
+
                 }
             }
         }
@@ -645,20 +668,16 @@ namespace SrcMan
                 {
                     if (SrcExt.Contains(file.Extension.ToLower()))
                     {
-                        file.MoveTo(Path.Combine(ConfigData.CachePath,file.Name));
-                        Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.Write("Moved:");
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"{file.FullName}");
-                        Console.ResetColor();
+                        file.MoveTo(Path.Combine(ConfigData.CachePath, file.Name));
+                        Io.Write("Moved:", default, ConsoleColor.Cyan);
+                        Io.WriteLine($"{file.FullName}", default, ConsoleColor.Yellow);
+
                     }
                 }
                 dir.Delete(true);
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("Remove:");
-                Console.ForegroundColor = ConsoleColor.Blue;
-                Console.WriteLine(dir.FullName);
-                Console.ResetColor();
+                Io.Write("Remove:", default, ConsoleColor.Red);
+                Io.WriteLine(dir.FullName, default, ConsoleColor.Blue);
+
             }
         }
         [MobileSuitInfo("MergeLabel <SrcLabel> <DesLabel>")]
@@ -666,20 +685,26 @@ namespace SrcMan
         {
             if (!DB.Store.Labels.Contains(source.ToUpper()))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("No Such Label!");
-                Console.ResetColor();
+                Io.WriteLine("No Such Label!", default, ConsoleColor.Red);
+
                 return;
             }
-            foreach(var item in DB.Store.Labels[source.ToUpper()].Items)
+            foreach (var item in DB.Store.Labels[source.ToUpper()].Items)
             {
                 item.Labels.Remove(source.ToUpper());
                 item.Labels.Add(destination.ToUpper());
             }
             DB.Store.Init();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Label Merged:{source}>>{destination}, use 'DB Format' to format.");
-            Console.ResetColor();
+            Io.WriteLine($"Label Merged:{source}>>{destination}, use 'DB Format' to format.", default, ConsoleColor.Green);
+
+        }
+        private IoInterface Io { get; set; }
+        public void SetIo(IoInterface io)
+        {
+            Io = io;
+            DB.SetIo(Io);
+            FindHandler.SetIo(Io);
+
         }
     }
 }

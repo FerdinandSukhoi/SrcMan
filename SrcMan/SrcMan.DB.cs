@@ -6,14 +6,21 @@ using System.Text;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.RegularExpressions;
+using MobileSuit;
+using MobileSuit.IO;
 
 namespace SrcMan
 {
     partial class SrcMan
     {
-        public class DBEngine
+        public class DbEngine:IIoInteractive
         {
-            public class DBStore
+            private IoInterface Io { get; set; }
+            public void SetIo(IoInterface io)
+            {
+                Io = io;
+            }
+            public class DbStore
             {
                 public SrcActor.SrcActorCollection Actors { get; set; } = new SrcActor.SrcActorCollection();
                 [JsonIgnore]
@@ -22,9 +29,9 @@ namespace SrcMan
                 public SrcLabel.SrcLabelCollection Labels { get; set; } = new SrcLabel.SrcLabelCollection();
                 public class SrcLabel
                 {
-                    public class SrcLabelCollection : KeyedCollection<string, SrcLabel>
+                    public class SrcLabelCollection : KeyedCollection<string?, SrcLabel>
                     {
-                        protected override string GetKeyForItem(SrcLabel item)
+                        protected override string? GetKeyForItem(SrcLabel item)
                             => item?.Name;
                     }
                     public string? Name { get; set; }
@@ -35,10 +42,10 @@ namespace SrcMan
                 }
                 public class SrcActor
                 {
-                    public class SrcActorCollection : KeyedCollection<string, SrcActor>
+                    public class SrcActorCollection : KeyedCollection<string?, SrcActor>
                     {
-                        protected override string GetKeyForItem(SrcActor item)
-                            => item.Name;
+                        protected override string? GetKeyForItem(SrcActor item)
+                            => item?.Name;
                     }
                     public int Index { get; set; }
                     public string? Name { get; set; }
@@ -46,17 +53,13 @@ namespace SrcMan
                     public bool Stared { get; set; }
                     public SrcItem.SrcItemCollection Items { get; set; } = new SrcItem.SrcItemCollection();
 
-                    public void Count()
-                    {
-                        Console.WriteLine($"Actor {Name} Has {Items.Count} Item(s) In DB");
-                    }
 
                 }
                 public class SrcItem
                 {
-                    public class SrcItemCollection : KeyedCollection<string, SrcItem>
+                    public class SrcItemCollection : KeyedCollection<string?, SrcItem>
                     {
-                        protected override string GetKeyForItem(SrcItem item)
+                        protected override string? GetKeyForItem(SrcItem item)
                             => item?.Name;
                     }
                     public string? Path { get; set; }
@@ -67,7 +70,7 @@ namespace SrcMan
                     [JsonIgnore]
                     public SrcActor? Actress { get; set; }
                 }
-                public DBStore() { }
+                public DbStore() { }
                 public void Init()
                 {
                     Items.Clear();
@@ -94,14 +97,14 @@ namespace SrcMan
                     }
                 }
             }
-            internal DBStore? Store { get; set; } 
+            internal DbStore? Store { get; set; } 
     
             SrcManBase.Config Config { get; set; }
             
             public void Order()
             {
                 if (!DbCheck()) return;
-                int i = 0;
+                var i = 0;
                 foreach (var actor in Store?.Actors)
                 {
                     actor.Index = i;
@@ -111,33 +114,29 @@ namespace SrcMan
                     }
                     i++;
                 }
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"DB Ordered successfully.");
-                Console.ResetColor();
+                ;
+                Io.WriteLine($"DB Ordered successfully.", IoInterface.OutputType.AllOk);
+                
                 Format();
             }
-            public DBEngine(SrcManBase.Config config)
+            public DbEngine(SrcManBase.Config config)
             {
                 Config = config;
                 
             }
             private bool ConfigCheck()
             {
-                if (Config==null)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.");
-                    Console.ResetColor();
-                    return false;
-                }
-                return true;
+                if (Config != null) return true;
+                Io.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",IoInterface.OutputType.Error);
+                    
+                return false;
             }
             internal bool DbCheck()
             {
                 if (Store != null) return true;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.");
-                Console.ResetColor();
+                ;
+                Io.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",IoInterface.OutputType.Error);
+                
                 return false;
             }
             internal static string[] SplitFn(FileInfo src)
@@ -147,34 +146,32 @@ namespace SrcMan
             public void Load()
             {
                 if (!ConfigCheck()) return;
-                //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write("Enter Source Directory>");
-                //Console.ResetColor();
+                //,default, ConsoleColor.Blue;
+                //Io.Write("Enter Source Directory>");
+                //
                 var dataBasePath = Path.Combine(Config.ConfigPath, "SrcDB.json");
                 if (!Directory.Exists(Config.ConfigPath)||!File.Exists(dataBasePath))
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Directory/File Not Exist!");
-                    Console.ResetColor();
+                    Io.Write("Directory/File Not Exist!", IoInterface.OutputType.Error);
+                    
                     return;
                 }
-                Store = JsonConvert.DeserializeObject<DBStore>(File.ReadAllText(dataBasePath));
+                Store = JsonConvert.DeserializeObject<DbStore>(File.ReadAllText(dataBasePath));
                 Store.Init();
-                MobileSuit.MobileSuitHost.GeneralIo.WriteLine("DB Loaded Successfully.",
-                    MobileSuit.MobileSuitIoInterface.OutputType.AllOk);
+                MobileSuitHost.GeneralIo.WriteLine("DB Loaded Successfully.",
+                    IoInterface.OutputType.AllOk);
             }
             public void Build()
             {
-                Store = new DBStore();
+                Store = new DbStore();
                 if (!ConfigCheck()) return;
-                //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write("Enter Source Directory>");
-                //Console.ResetColor();
+                //,default, ConsoleColor.Blue;
+                //Io.Write("Enter Source Directory>");
+                //
                 if (!Directory.Exists(Config.DataPath))
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Directory Not Exist!");
-                    Console.ResetColor();
+                    Io.Write("Directory Not Exist!", IoInterface.OutputType.Error);
+                    
                     return;
                 }
                 var numbRgx = new Regex("[0-9]");
@@ -186,7 +183,7 @@ namespace SrcMan
                         var actorInfo = actorDir.Name.Split('-');
 
                         var actorName = actorInfo[1];
-                        var actor = new DBStore.SrcActor
+                        var actor = new DbStore.SrcActor
                         {
                             Index = 26 * (actorInfo[0][0] - 'A') + actorInfo[0][1] - 'A',
                             Name = actorName,
@@ -199,10 +196,10 @@ namespace SrcMan
                             var itemInfoArr = SplitFn(item);
                             if (itemInfoArr.Length < 4)
                             {
-                                Console.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
+                                Io.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
                                 continue;
                             }
-                            var itemInfo = new DBStore.SrcItem
+                            var itemInfo = new DbStore.SrcItem
                             {
                                 Path = item.FullName,
                                 Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
@@ -218,7 +215,7 @@ namespace SrcMan
                                     itemInfo.Labels.Add(label.ToUpper());
                                     if (!Store.Labels.Contains(label.ToUpper()))
                                     {
-                                        Store.Labels.Add(new DBStore.SrcLabel() { Name = label.ToUpper() });
+                                        Store.Labels.Add(new DbStore.SrcLabel() { Name = label.ToUpper() });
                                     }
                                     Store.Labels[label.ToUpper()].Items.Add(itemInfo);
                                 }
@@ -229,65 +226,26 @@ namespace SrcMan
                             Store.Items.Add(itemInfo);
                             itemIndex++;
                         }
-                        //foreach (var itemBox in actorDir.GetDirectories())
-                        //{
-                        //    int i = 1;
-                        //    foreach (var item in itemBox.GetFiles())
-                        //    {
-                        //        var itemInfoArr = SplitFN(item);
-                        //        var itemInfo = new DBStore.SrcItem();
-                        //        itemInfo.Path = item.FullName;
-                        //        itemInfo.Name = $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}-{i}";
-                        //        if (itemInfoArr.Length > 4)
-                        //        {
-                        //            foreach (var label in itemInfoArr[4..])
-                        //            {
-                        //                if (numbRgx.IsMatch(label.ToUpper())) 
-                        //                    continue;
-                        //                itemInfo.Labels.Add(label.ToUpper());
-                        //                if (!Store.Labels.Contains(label.ToUpper()))
-                        //                {
-                        //                    Store.Labels.Add(new DBStore.SrcLabel() { Name = label.ToUpper() });
-                        //                }
-                        //                Store.Labels[label.ToUpper()].Items.Add(itemInfo);
-
-
-                        //            }
-                        //        }
-                        //        Store.Actors[actorName].Items.Add(itemInfo);
-                        //        Store.Items.Add(itemInfo);
-                        //        itemInfo.Stared = itemInfo.Labels.Contains("M");
-                        //        itemInfo.Index = actor.Index * 100 + itemIndex;
-                        //        itemIndex++;
-                        //        i++;
-                        //    }
-                        //}
                     } 
                     
 
                 }
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.");
-                Console.ResetColor();
+                Io.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
+                
             }
             public void Save()
             {
                 if (!ConfigCheck()) return;
                 if (!DbCheck()) return;
-                //Console.ForegroundColor = ConsoleColor.Blue;
-                //Console.Write("Enter Source Directory>");
-                //Console.ResetColor();
                 if (!Directory.Exists(Config.ConfigPath))
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("Directory Not Exist!");
-                    Console.ResetColor();
+                    Io.Write("Directory Not Exist!", IoInterface.OutputType.Error);
+                    
                     return;
                 }
                 File.WriteAllText(Path.Combine(Config.ConfigPath, "SrcDB.json"), JsonConvert.SerializeObject(Store));
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.");
-                Console.ResetColor();
+                Io.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
+                
             }
             internal static string GetActorCode(int index)
             {
@@ -301,27 +259,28 @@ namespace SrcMan
             {
                 if (!ConfigCheck()) return;
                 if (!DbCheck()) return;
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write("SrcMan will format your SrcFiles. This will be irreversible. Are you sure to continue?(input y to continue)>");
-                Console.ResetColor();
-                if (Console.ReadLine()?.ToLower() != "y") return;
+                
+                
+                if (Io.ReadLine(
+                        @"SrcMan will format your SrcFiles. This will be irreversible. Are you sure to continue?(default input y to continue)",
+                        "y",true,ConsoleColor.Yellow)?.ToLower() != "y") return;
                 foreach (var actor in Store?.Actors)
                 {
                     var pactorHead = Path.Combine(Config.DataPath, ((char)(actor.Index / 26 + 'A')).ToString());
                     if (!Directory.Exists(pactorHead))
                     {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"MkDir {pactorHead}");
-                        Console.ResetColor();
+                        
+                        Io.WriteLine($"MkDir {pactorHead}", default, ConsoleColor.Green);
+                        
                         Directory.CreateDirectory(pactorHead);
                     }
                     var actorDir= Path.Combine(pactorHead,
                         $"{GetActorCode(actor.Index)}-{actor.Name}{(actor.Stared?"-M":"")}");
                     if (!Directory.Exists(actorDir))
                     {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"MkDir {actorDir}");
-                        Console.ResetColor();
+                        
+                        Io.WriteLine($"MkDir {actorDir}", default, ConsoleColor.Green);
+                        
                         Directory.CreateDirectory(actorDir);
                     }
                     foreach (var item in actor.Items)
@@ -344,9 +303,9 @@ namespace SrcMan
                         {
                             continue;
                         }
-                        Console.ForegroundColor = ConsoleColor.Blue;
-                        Console.WriteLine($"Move {fi.FullName} \n >> {itemPath}");
-                        Console.ResetColor();
+                        
+                        Io.WriteLine($"Move {fi.FullName} \n >> {itemPath}", default, ConsoleColor.Blue);
+                        
                         fi.MoveTo(itemPath,true);
                         item.Path = itemPath;
                     }
@@ -368,17 +327,17 @@ namespace SrcMan
                     }
                     else if(files.Length==0)
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"RmDir {wkDir.FullName}");
-                        Console.ResetColor();
+                        
+                        Io.WriteLine($"RmDir {wkDir.FullName}", default, ConsoleColor.Red);
+                        
                         wkDir.Delete();
 
                     }
                 }
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"DB formatted successfully.");
-                Console.ResetColor();
+                
+                Io.WriteLine($"DB formatted successfully.", default, ConsoleColor.Green);
+                
                 Save();
             }
             //public void Status(string arg)
@@ -393,7 +352,7 @@ namespace SrcMan
             //        case "-l":
 
             //        default:
-            //            Console.WriteLine("This is null");
+            //            Io.WriteLine("This is null");
             //            break;
             //    }
             //}
