@@ -15,7 +15,7 @@ namespace SrcMan
     {
         public class DbEngine:IIoInteractive
         {
-            private IoInterface Io { get; set; }
+            private IoInterface? Io { get; set; }
             public void SetIo(IoInterface io)
             {
                 Io = io;
@@ -105,7 +105,8 @@ namespace SrcMan
             {
                 if (!DbCheck()) return;
                 var i = 0;
-                foreach (var actor in Store?.Actors)
+                if (Store is null) return;
+                foreach (var actor in Store.Actors)
                 {
                     actor.Index = i;
                     foreach (var item in actor.Items)
@@ -115,7 +116,7 @@ namespace SrcMan
                     i++;
                 }
                 ;
-                Io.WriteLine($"DB Ordered successfully.", IoInterface.OutputType.AllOk);
+                Io?.WriteLine($"DB Ordered successfully.", IoInterface.OutputType.AllOk);
                 
                 Format();
             }
@@ -127,7 +128,7 @@ namespace SrcMan
             private bool ConfigCheck()
             {
                 if (Config != null) return true;
-                Io.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",IoInterface.OutputType.Error);
+                Io?.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",IoInterface.OutputType.Error);
                     
                 return false;
             }
@@ -135,7 +136,7 @@ namespace SrcMan
             {
                 if (Store != null) return true;
                 ;
-                Io.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",IoInterface.OutputType.Error);
+                Io?.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",IoInterface.OutputType.Error);
                 
                 return false;
             }
@@ -147,12 +148,12 @@ namespace SrcMan
             {
                 if (!ConfigCheck()) return;
                 //,default, ConsoleColor.Blue;
-                //Io.Write("Enter Source Directory>");
+                //Io?.Write("Enter Source Directory>");
                 //
                 var dataBasePath = Path.Combine(Config.ConfigPath, "SrcDB.json");
                 if (!Directory.Exists(Config.ConfigPath)||!File.Exists(dataBasePath))
                 {
-                    Io.Write("Directory/File Not Exist!", IoInterface.OutputType.Error);
+                    Io?.Write("Directory/File Not Exist!", IoInterface.OutputType.Error);
                     
                     return;
                 }
@@ -166,11 +167,11 @@ namespace SrcMan
                 Store = new DbStore();
                 if (!ConfigCheck()) return;
                 //,default, ConsoleColor.Blue;
-                //Io.Write("Enter Source Directory>");
+                //Io?.Write("Enter Source Directory>");
                 //
                 if (!Directory.Exists(Config.DataPath))
                 {
-                    Io.Write("Directory Not Exist!", IoInterface.OutputType.Error);
+                    Io?.Write("Directory Not Exist!", IoInterface.OutputType.Error);
                     
                     return;
                 }
@@ -196,7 +197,7 @@ namespace SrcMan
                             var itemInfoArr = SplitFn(item);
                             if (itemInfoArr.Length < 4)
                             {
-                                Io.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
+                                Io?.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
                                 continue;
                             }
                             var itemInfo = new DbStore.SrcItem
@@ -230,7 +231,7 @@ namespace SrcMan
                     
 
                 }
-                Io.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
+                Io?.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
                 
             }
             public void Save()
@@ -239,12 +240,12 @@ namespace SrcMan
                 if (!DbCheck()) return;
                 if (!Directory.Exists(Config.ConfigPath))
                 {
-                    Io.Write("Directory Not Exist!", IoInterface.OutputType.Error);
+                    Io?.Write("Directory Not Exist!", IoInterface.OutputType.Error);
                     
                     return;
                 }
                 File.WriteAllText(Path.Combine(Config.ConfigPath, "SrcDB.json"), JsonConvert.SerializeObject(Store));
-                Io.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
+                Io?.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
                 
             }
             internal static string GetActorCode(int index)
@@ -259,27 +260,27 @@ namespace SrcMan
             {
                 if (!ConfigCheck()) return;
                 if (!DbCheck()) return;
+                if (Store is null) return;
                 
-                
-                if (Io.ReadLine(
+                if (Io?.ReadLine(
                         @"SrcMan will format your SrcFiles. This will be irreversible. Are you sure to continue?(default input y to continue)",
                         "y",true,ConsoleColor.Yellow)?.ToLower() != "y") return;
-                foreach (var actor in Store?.Actors)
+                foreach (var actor in Store.Actors)
                 {
-                    var pactorHead = Path.Combine(Config.DataPath, ((char)(actor.Index / 26 + 'A')).ToString());
-                    if (!Directory.Exists(pactorHead))
+                    var actorPrefixDirectory = Path.Combine(Config.DataPath, ((char)(actor.Index / 26 + 'A')).ToString());
+                    if (!Directory.Exists(actorPrefixDirectory))
                     {
                         
-                        Io.WriteLine($"MkDir {pactorHead}", default, ConsoleColor.Green);
+                        Io?.WriteLine($"MkDir {actorPrefixDirectory}", default, ConsoleColor.Green);
                         
-                        Directory.CreateDirectory(pactorHead);
+                        Directory.CreateDirectory(actorPrefixDirectory);
                     }
-                    var actorDir= Path.Combine(pactorHead,
+                    var actorDir= Path.Combine(actorPrefixDirectory,
                         $"{GetActorCode(actor.Index)}-{actor.Name}{(actor.Stared?"-M":"")}");
                     if (!Directory.Exists(actorDir))
                     {
                         
-                        Io.WriteLine($"MkDir {actorDir}", default, ConsoleColor.Green);
+                        Io?.WriteLine($"MkDir {actorDir}", default, ConsoleColor.Green);
                         
                         Directory.CreateDirectory(actorDir);
                     }
@@ -304,7 +305,7 @@ namespace SrcMan
                             continue;
                         }
                         
-                        Io.WriteLine($"Move {fi.FullName} \n >> {itemPath}", default, ConsoleColor.Blue);
+                        Io?.WriteLine($"Move {fi.FullName} \n >> {itemPath}", default, ConsoleColor.Blue);
                         
                         fi.MoveTo(itemPath,true);
                         item.Path = itemPath;
@@ -328,7 +329,7 @@ namespace SrcMan
                     else if(files.Length==0)
                     {
                         
-                        Io.WriteLine($"RmDir {wkDir.FullName}", default, ConsoleColor.Red);
+                        Io?.WriteLine($"RmDir {wkDir.FullName}", default, ConsoleColor.Red);
                         
                         wkDir.Delete();
 
@@ -336,7 +337,7 @@ namespace SrcMan
                 }
 
                 
-                Io.WriteLine($"DB formatted successfully.", default, ConsoleColor.Green);
+                Io?.WriteLine($"DB formatted successfully.", default, ConsoleColor.Green);
                 
                 Save();
             }
@@ -352,7 +353,7 @@ namespace SrcMan
             //        case "-l":
 
             //        default:
-            //            Io.WriteLine("This is null");
+            //            Io?.WriteLine("This is null");
             //            break;
             //    }
             //}
