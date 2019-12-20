@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -14,10 +15,9 @@ namespace SrcMan
     [MobileSuitInfo("Source Manager")]
     public partial class SrcMan : IIoInteractive
     {
-        private readonly string[] SrcExt = new string[] { ".mp4", ".wmv", ".avi", ".mkv", ".rmvb" };
+        private readonly string[] SrcExt = new string[] {".mp4", ".wmv", ".avi", ".mkv", ".rmvb"};
         private Queue<FileInfo> SrcQueue { get; set; }
-        [MobileSuitInfo("Configs")]
-        public SrcManBase.Config ConfigData { get; set; }
+        [MobileSuitInfo("Configs")] public SrcManBase.Config ConfigData { get; set; }
         public string ConfigPath { get; set; }
         public DbEngine DB { get; set; }
         private FindEngine FindHandler { get; set; }
@@ -33,40 +33,57 @@ namespace SrcMan
             {
                 Io.WriteLine("");
 
-                ConfigPath = Path.Combine(Io.ReadLine("InputPath of 'SrcManConfig.json', Leave empty to use current path",
+                ConfigPath = Path.Combine(Io.ReadLine(
+                    "InputPath of 'SrcManConfig.json', Leave empty to use current path",
                     default, true, ConsoleColor.Yellow), "SrcManConfig.json");
             }
 
 
             if (!File.Exists(ConfigPath))
             {
-                Io.WriteLine("File Not Found. Use 'init' or 'loadcfg' command to initialize.", IoInterface.OutputType.Error);
+                Io.WriteLine("File Not Found. Use 'init' or 'loadcfg' command to initialize.",
+                    IoInterface.OutputType.Error);
             }
             else
             {
-                ConfigData = Newtonsoft.Json.JsonConvert.DeserializeObject<SrcManBase.Config>(File.ReadAllText(ConfigPath));
+                ConfigData =
+                    Newtonsoft.Json.JsonConvert.DeserializeObject<SrcManBase.Config>(File.ReadAllText(ConfigPath));
             }
+
             DB = new DbEngine(ConfigData);
 
             Load();
             FindHandler = new FindEngine(DB);
             //MTP = new MTPEngine(DB, ConfigData);
         }
+
         public void Init()
         {
             ConfigData = new SrcManBase.Config();
             Config();
             DB.Build();
         }
+
         public void Config()
         {
-            ConfigData.DataPath = Io.ReadLine($"Enter Source Directory\n(Now={ConfigData.DataPath})>", ConfigData.DataPath, true, ConsoleColor.Blue);
-            ConfigData.ConfigPath = Io.ReadLine($"Enter ConfigFiles Directory\n(Now={ConfigData.ConfigPath})", ConfigData.ConfigPath, true, ConsoleColor.Blue);
-            ConfigData.CachePath = Io.ReadLine($"Enter CacheFiles Directory\n(Now={ConfigData.CachePath})", ConfigData.CachePath, true, ConsoleColor.Blue);
-            ConfigData.ConvertPath = Io.ReadLine($"Enter ConvertFiles Directory\n(Now={ConfigData.ConvertPath})", ConfigData.ConvertPath, true, ConsoleColor.Blue);
-            ConfigData.PullFilePath = Io.ReadLine($"Enter Pull Path\n(Now={ConfigData.PullFilePath})", ConfigData.PullFilePath, true, ConsoleColor.Blue);
-            ConfigData.MTPDeviceName = Io.ReadLine($"Enter MTP Device Name (May use 'MTP List' command to get)\n(Now={ConfigData.MTPDeviceName})", ConfigData.MTPDeviceName, true, ConsoleColor.Blue);
-            ConfigData.MTPDirectoryPath = Io.ReadLine($"Enter MTP Device Directory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={ConfigData.MTPDirectoryPath})", ConfigData.MTPDirectoryPath, true, ConsoleColor.Blue);
+            ConfigData.DataPath = Io.ReadLine($"Enter Source Directory\n(Now={ConfigData.DataPath})>",
+                ConfigData.DataPath, true, ConsoleColor.Blue);
+            ConfigData.ConfigPath = Io.ReadLine($"Enter ConfigFiles Directory\n(Now={ConfigData.ConfigPath})",
+                ConfigData.ConfigPath, true, ConsoleColor.Blue);
+            ConfigData.CachePath = Io.ReadLine($"Enter CacheFiles Directory\n(Now={ConfigData.CachePath})",
+                ConfigData.CachePath, true, ConsoleColor.Blue);
+            ConfigData.ConvertPath = Io.ReadLine($"Enter ConvertFiles Directory\n(Now={ConfigData.ConvertPath})",
+                ConfigData.ConvertPath, true, ConsoleColor.Blue);
+            ConfigData.PullFilePath = Io.ReadLine($"Enter Pull Path\n(Now={ConfigData.PullFilePath})",
+                ConfigData.PullFilePath, true, ConsoleColor.Blue);
+            ConfigData.MTPDeviceName =
+                Io.ReadLine(
+                    $"Enter MTP Device Name (May use 'MTP List' command to get)\n(Now={ConfigData.MTPDeviceName})",
+                    ConfigData.MTPDeviceName, true, ConsoleColor.Blue);
+            ConfigData.MTPDirectoryPath =
+                Io.ReadLine(
+                    $"Enter MTP Device Directory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={ConfigData.MTPDirectoryPath})",
+                    ConfigData.MTPDirectoryPath, true, ConsoleColor.Blue);
             Io.WriteLine("");
             Io.WriteLine("Now:");
             Io.WriteLine($"DataFiles Directory={ConfigData.DataPath}");
@@ -82,14 +99,15 @@ namespace SrcMan
                 File.WriteAllText(ConfigPath, Newtonsoft.Json.JsonConvert.SerializeObject(ConfigData));
             }
         }
+
         public void Load()
         {
             DB.Load();
             var cvtSetPath = Path.Combine(ConfigData.ConfigPath, "CvtSet.json");
-            ConvertFiles = File.Exists(cvtSetPath) ? 
-                JsonConvert
-                .DeserializeObject<HashSet<DbEngine.DbStore.SrcItem>>
-                    (File.ReadAllText(cvtSetPath)) 
+            ConvertFiles = File.Exists(cvtSetPath)
+                ? JsonConvert
+                    .DeserializeObject<HashSet<DbEngine.DbStore.SrcItem>>
+                        (File.ReadAllText(cvtSetPath))
                 : new HashSet<DbEngine.DbStore.SrcItem>();
         }
 
@@ -105,31 +123,94 @@ namespace SrcMan
 
         public void Upd()
             => Update();
+
         public void Update()
         {
             if (ConvertCheck()) DB.Format();
         }
-        public void EnQ()
+
+        public string EnQ()
             => EnQueueAll();
+
         //public void Sync(string itemCode)
         //    => MTP.Sync(itemCode);
         //public void DSync(string itemCode)
         //    => MTP.DeSync(itemCode);
         //public void Push()
         //    => MTP.Push();
-        public void Find(string arg0)
+        private static readonly string[] FindLabels = {
+            "#a","#l","#i"
+        };
+
+        private delegate void Find1(string arg0);
+        private delegate void Find2(string arg0,string arg1);
+        private delegate void Find3(string arg0, string arg2, string arg3);
+        public string? Find(string[]? args=null)
+        {
+
+            switch (args?.Length)
+            {
+                case 1:
+                    Find(args[0]);
+                    break;
+                case 2:
+                    if (FindLabels.Contains(args[0].ToLower()))
+                    {
+
+                        var find = args[0].ToLower() switch
+                        {
+                            "#a" => (Find1) FindHandler.A,
+                            "#i" => (Find1) FindHandler.I,
+                            "#l" => (Find1) FindHandler.L,
+                            _=>null
+                        };
+                        find?.Invoke(args[1]);
+                    }
+                    else
+                    {
+                        Find(args[0], args[1]);
+                    }
+
+                    break;
+                case 3:
+                    if (FindLabels.Contains(args[0].ToLower()))
+                    {
+
+                        var find = args[0].ToLower() switch
+                        {
+                            "#a" => (Find2)FindHandler.A,
+                            "#i" => (Find2)FindHandler.I,
+                            "#l" => (Find2)FindHandler.L,
+                            _ => null
+                        };
+                        find?.Invoke(args[1],args[2]);
+                    }
+                    else
+                    {
+                        Find(args[0], args[1],args[2]);
+                    }
+
+                    break;
+                default:
+                    return "Invalid Command.";
+                    
+            }
+
+            return null;
+        }
+        private void Find(string arg0)
         {
             FindHandler.I(arg0);
             FindHandler.A(arg0);
             FindHandler.L(arg0);
         }
-        public void Find(string arg0, string arg1)
+        private void Find(string arg0, string arg1)
         {
             FindHandler.I(arg0, arg1);
             FindHandler.A(arg0, arg1);
             FindHandler.L(arg0, arg1);
         }
-        public void Find(string arg0, string arg1, string arg2)
+        private void Find(string arg0, string arg1, string arg2)
         {
 
             FindHandler.L(arg0, arg1, arg2);
@@ -489,7 +570,7 @@ namespace SrcMan
 
         }
 
-        public bool ConvertCheck()
+        private bool ConvertCheck()
         {
             var rmStk = new Stack<DbEngine.DbStore.SrcItem>();
             foreach (var convertFile in ConvertFiles)
@@ -635,7 +716,7 @@ namespace SrcMan
             };
             player.Start();
         }
-        public void EnQueueAll()
+        public string EnQueueAll()
         {
             SrcQueue = new Queue<FileInfo>();
             Dpkg();
@@ -644,7 +725,7 @@ namespace SrcMan
                 if (SrcExt.Contains(file.Extension.ToLower()))
                 {
                     SrcQueue.Enqueue(file);
-                    Io.Write("Enqueued:", default, ConsoleColor.Green);
+                    Io.Write("Queued:", default, ConsoleColor.Green);
                     Io.WriteLine(file.FullName, default, ConsoleColor.Yellow);
 
                 }
@@ -656,6 +737,8 @@ namespace SrcMan
 
                 }
             }
+
+            return $"{SrcQueue.Count} Items are queued.";
         }
         public void Dpkg()
             => DepackageFolders();
