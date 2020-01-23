@@ -1,16 +1,18 @@
 ﻿using System;
+using PlasticMetal.MobileSuit.ObjectModel.Interfaces;
 using System.Collections.Generic;
 using System.Text;
 
 namespace SrcMan
 {
     [AttributeUsage(AttributeTargets.All,AllowMultiple = false)]
-    public sealed class MobileSuitInfo: Attribute, IMobileSuitInfo
+    public sealed class MobileSuitInfo: Attribute, IInfoProvider
     {
-        public string Prompt { get; private set; }
         public MobileSuitInfo(string prompt)
         {
-            Prompt = prompt;
+            Text = prompt;
         }
+
+        public string Text { get; }
     }
 }

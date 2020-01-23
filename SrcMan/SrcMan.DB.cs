@@ -6,20 +6,18 @@ using System.Text;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.RegularExpressions;
-using MobileSuit;
-using MobileSuit.IO;
+using PlasticMetal.MobileSuit;
+using PlasticMetal.MobileSuit.ObjectModel;
+using PlasticMetal.MobileSuit.IO;
+using PlasticMetal.MobileSuit.ObjectModel.Interfaces;
 
 namespace SrcMan
 {
     partial class SrcMan
     {
-        public class DbEngine:IIoInteractive
+        public class DbEngine:MsClient
         {
-            private IoInterface? Io { get; set; }
-            public void SetIo(IoInterface io)
-            {
-                Io = io;
-            }
+
             public class DbStore
             {
                 public SrcActor.SrcActorCollection Actors { get; set; } = new SrcActor.SrcActorCollection();
@@ -116,7 +114,7 @@ namespace SrcMan
                     i++;
                 }
                 ;
-                Io?.WriteLine($"DB Ordered successfully.", IoInterface.OutputType.AllOk);
+                Io?.WriteLine($"DB Ordered successfully.", OutputType.AllOk);
                 
                 Format();
             }
@@ -128,7 +126,7 @@ namespace SrcMan
             private bool ConfigCheck()
             {
                 if (Config != null) return true;
-                Io?.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",IoInterface.OutputType.Error);
+                Io?.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",OutputType.Error);
                     
                 return false;
             }
@@ -136,7 +134,7 @@ namespace SrcMan
             {
                 if (Store != null) return true;
                 ;
-                Io?.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",IoInterface.OutputType.Error);
+                Io?.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",OutputType.Error);
                 
                 return false;
             }
@@ -153,14 +151,14 @@ namespace SrcMan
                 var dataBasePath = Path.Combine(Config.ConfigPath, "SrcDB.json");
                 if (!Directory.Exists(Config.ConfigPath)||!File.Exists(dataBasePath))
                 {
-                    Io?.Write("Directory/File Not Exist!", IoInterface.OutputType.Error);
+                    Io?.Write("Directory/File Not Exist!", OutputType.Error);
                     
                     return;
                 }
                 Store = JsonConvert.DeserializeObject<DbStore>(File.ReadAllText(dataBasePath));
                 Store.Init();
-                MobileSuitHost.GeneralIo.WriteLine("DB Loaded Successfully.",
-                    IoInterface.OutputType.AllOk);
+                Io.WriteLine("DB Loaded Successfully.",
+                    OutputType.AllOk);
             }
             public void Build()
             {
@@ -171,7 +169,7 @@ namespace SrcMan
                 //
                 if (!Directory.Exists(Config.DataPath))
                 {
-                    Io?.Write("Directory Not Exist!", IoInterface.OutputType.Error);
+                    Io?.Write("Directory Not Exist!", OutputType.Error);
                     
                     return;
                 }
@@ -231,7 +229,7 @@ namespace SrcMan
                     
 
                 }
-                Io?.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
+                Io?.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",OutputType.AllOk);
                 
             }
             public void Save()
@@ -240,12 +238,12 @@ namespace SrcMan
                 if (!DbCheck()) return;
                 if (!Directory.Exists(Config.ConfigPath))
                 {
-                    Io?.Write("Directory Not Exist!", IoInterface.OutputType.Error);
+                    Io?.Write("Directory Not Exist!", OutputType.Error);
                     
                     return;
                 }
                 File.WriteAllText(Path.Combine(Config.ConfigPath, "SrcDB.json"), JsonConvert.SerializeObject(Store));
-                Io?.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",IoInterface.OutputType.AllOk);
+                Io?.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",OutputType.AllOk);
                 
             }
             internal static string GetActorCode(int index)

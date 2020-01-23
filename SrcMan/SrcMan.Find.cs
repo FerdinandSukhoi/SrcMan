@@ -2,21 +2,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using MobileSuit;
-using MobileSuit.IO;
+using PlasticMetal.MobileSuit;
+using PlasticMetal.MobileSuit.ObjectModel;
+using PlasticMetal.MobileSuit.IO;
 using static SrcMan.SrcMan.DbEngine.DbStore;
 
 namespace SrcMan
 {
     partial class SrcMan
     {
-        public class FindEngine:IIoInteractive
+        public class FindEngine:MsClient
         {
-            private IoInterface Io { get; set; }
-            public void SetIo(IoInterface io)
-            {
-                Io = io;
-            }
+
             DbEngine DB { get; set; }
             public FindEngine(DbEngine db)
             {
@@ -29,7 +26,7 @@ namespace SrcMan
                 var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0)).ToList();
                 if (!acts?.Any()??false)
                 {
-                    Io.WriteLine("No such Actor found.", IoInterface.OutputType.Error);
+                    Io.WriteLine("No such Actor found.", OutputType.Error);
                 }
                 else
                 {
@@ -69,7 +66,7 @@ namespace SrcMan
                 var acts = DB.Store.Actors.Where(a => a.Name.Contains(arg0) && a.Name.Contains(arg1)).ToList();
                 if (!acts.Any())
                 {
-                    Io.WriteLine("No such Actor found.",IoInterface.OutputType.Error);
+                    Io.WriteLine("No such Actor found.",OutputType.Error);
                 }
                 else
                 {
@@ -166,7 +163,7 @@ namespace SrcMan
                 if (itms.Count() == 0)
                 {
                     
-                    Io.WriteLine("No such Item(s) found.",IoInterface.OutputType.Error);
+                    Io.WriteLine("No such Item(s) found.",OutputType.Error);
                     
                 }
                 else
@@ -204,7 +201,7 @@ namespace SrcMan
                 if (!itms.Any())
                 {
                     
-                    Io.WriteLine("No such Item(s) found.",IoInterface.OutputType.Error);
+                    Io.WriteLine("No such Item(s) found.",OutputType.Error);
                     
                 }
                 else
@@ -279,7 +276,7 @@ namespace SrcMan
                 if (!items.Any())
                 {
                     
-                    Io.WriteLine("No such Item(s) found.",IoInterface.OutputType.Error);
+                    Io.WriteLine("No such Item(s) found.",OutputType.Error);
                     
                 }
                 else
