@@ -67,6 +67,16 @@ namespace SrcMan
                     public bool Stared { get; set; }
                     [JsonIgnore]
                     public SrcActor? Actress { get; set; }
+
+                    public string GetLabels()
+                    {
+                        var sb = new StringBuilder();
+                        if (Labels.Count == 0) return "";
+                        foreach (var label in Labels)
+                            sb.Append($"-{label}");
+                        return sb.ToString()[1..];
+
+                    }
                 }
                 public DbStore() { }
                 public void Init()

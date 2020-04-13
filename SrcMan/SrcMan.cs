@@ -8,9 +8,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using PlasticMetal.MobileSuit.IO;
+using PlasticMetal.MobileSuit.ObjectModel;
 using PlasticMetal.MobileSuit.ObjectModel.Attributes;
 using PlasticMetal.MobileSuit.ObjectModel.Interfaces;
 using SrcManBase;
+using static System.String;
 
 namespace SrcMan
 {
@@ -22,7 +24,7 @@ namespace SrcMan
             "#a", "#l", "#i"
         };
 
-        private readonly string[] SrcExt = {".mp4", ".wmv", ".avi", ".mkv", ".rmvb"};
+        private readonly string[] _srcExt = {".mp4", ".wmv", ".avi", ".mkv", ".rmvb"};
 
         public SrcMan()
         {
@@ -50,28 +52,18 @@ namespace SrcMan
 
             Db = new DbEngine(ConfigData ?? new Config());
 
-            Load();
-            FindHandler = new FindEngine(Db);
+
             //MTP = new MTPEngine(DB, ConfigData);
         }
 
-        private Queue<FileInfo>? SrcQueue { get; set; }
+        private Queue<FileInfo> SrcQueue { get; set; } = new Queue<FileInfo>();
+        private HashSet<string> BufferList { get; set; } = new HashSet<string>();
         [MsInfo("Configs")] public Config? ConfigData { get; set; }
         public string ConfigPath { get; set; }
         public DbEngine? Db { get; set; }
-        private FindEngine? FindHandler { get; }
+        private FindEngine? FindHandler { get; set; }
         private Regex ActorCodeRegex { get; } = new Regex("[A-Z][A-Z]");
-
         private HashSet<DbEngine.DbStore.SrcItem>? ConvertFiles { set; get; }
-        private IoServer? Io { get; set; }
-
-        [MsIgnorable]
-        public void SetIo(IoServer io)
-        {
-            Io = io;
-            Db?.SetIo(Io);
-            FindHandler?.SetIo(Io);
-        }
 
         public void Init()
         {
@@ -118,12 +110,19 @@ namespace SrcMan
         public void Load()
         {
             Db?.Load();
+            FindHandler = new FindEngine(Db); FindHandler?.SetIo(Io);
             var cvtSetPath = Path.Combine(ConfigData?.ConfigPath ?? "", "CvtSet.json");
+            var bufSetPath = Path.Combine(ConfigData?.ConfigPath ?? "", "BufSet.json");
             ConvertFiles = File.Exists(cvtSetPath)
                 ? JsonConvert
                     .DeserializeObject<HashSet<DbEngine.DbStore.SrcItem>>
                         (File.ReadAllText(cvtSetPath))
                 : new HashSet<DbEngine.DbStore.SrcItem>();
+            BufferList = File.Exists(bufSetPath)
+                ? JsonConvert
+                    .DeserializeObject<HashSet<string>>
+                        (File.ReadAllText(bufSetPath))
+                : new HashSet<string>();
         }
 
         [MsAlias("Sav")]
@@ -132,12 +131,15 @@ namespace SrcMan
             Db?.Save();
             File.WriteAllText(Path.Combine(ConfigData?.ConfigPath ?? "", "CvtSet.json"),
                 JsonConvert.SerializeObject(ConvertFiles));
+            File.WriteAllText(Path.Combine(ConfigData?.ConfigPath ?? "", "BufSet.json"),
+                JsonConvert.SerializeObject(BufferList));
         }
 
         [MsAlias("Upd")]
         public void Update()
         {
             if (ConvertCheck()) Db?.Format();
+            BufferList.Clear();
         }
 
         public string? Find(string[]? args = null)
@@ -210,11 +212,38 @@ namespace SrcMan
         {
             FindHandler?.L(arg0, arg1, arg2);
         }
-
-        public void Play(string itemId)
+        [MsAlias("Dir")]
+        public void ViewDirectory(string itemId)
         {
             if (!(Db?.DbCheck() ?? false)) return;
             Save();
+            var regex = new Regex("[A-Z][A-Z][0-9][0-9]");
+            itemId = itemId.ToUpper();
+            var item = regex.IsMatch(itemId)
+                ? Db?.Store?.Actors?
+                    .FirstOrDefault(a => a.Index == 26 * (itemId[0] - 'A') + itemId[1] - 'A')?.Items
+                    .FirstOrDefault(i =>
+                        i.Index
+                        == 100 * (26 * (itemId[0] - 'A') + itemId[1] - 'A') + 10 * (itemId[2] - '0') + itemId[3] - '0')
+                : Db?.Store?.Items.FirstOrDefault(i => i.Name?.Contains(itemId) ?? false);
+            if (item is null)
+            {
+                Io?.WriteLine("No Such Item.", OutputType.Error);
+                return;
+            }
+
+            var player = new Process
+            {
+                StartInfo =
+                {
+                    FileName = @"explorer", Arguments = new FileInfo(item.Path).DirectoryName??""
+                }
+            };
+            player.Start();
+        }
+        public void Play(string itemId)
+        {
+            if (!(Db?.DbCheck() ?? false)) return;
             var regex = new Regex("[A-Z][A-Z][0-9][0-9]");
             itemId = itemId.ToUpper();
             var item = regex.IsMatch(itemId)
@@ -239,7 +268,43 @@ namespace SrcMan
             };
             player.Start();
         }
+        [MsAlias("Rm")]
+        public void Remove(string itemId)
+        {
+            if (!(Db?.DbCheck() ?? false)) return;
+            var regex = new Regex("[A-Z][A-Z][0-9][0-9]");
+            itemId = itemId.ToUpper();
+            var item = regex.IsMatch(itemId)
+                ? Db?.Store?.Actors?
+                    .FirstOrDefault(a => a.Index == 26 * (itemId[0] - 'A') + itemId[1] - 'A')?.Items
+                    .FirstOrDefault(i =>
+                        i.Index
+                        == 100 * (26 * (itemId[0] - 'A') + itemId[1] - 'A') + 10 * (itemId[2] - '0') + itemId[3] - '0')
+                : Db?.Store?.Items.FirstOrDefault(i => i.Name?.Contains(itemId) ?? false);
+            if (item is null)
+            {
+                Io?.WriteLine("No Such Item.", OutputType.Error);
+                return;
+            }
+            var itemLabels = item.GetLabels();
+            Io?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+            {
+                (item.Actress.Name??"<>",ConsoleColor.Yellow),
+                ($" {item.Name} ",null),
+                (itemLabels,ConsoleColor.Blue),
+                (" ",null),
+                (item.Stared?"⭐":"",ConsoleColor.Cyan)
+            });
 
+            if (Io?.ReadLine($"要删除吗？(默认y)", "y")?.ToLower() != "y")
+            {
+                Io?.WriteLine("操作终止。", OutputType.Error);
+                return;
+            }
+
+            item.Actress?.Items.Remove(item);
+            Db?.Store?.Init();
+        }
         public void Pull()
         {
             if (!(Db?.DbCheck() ?? false)) return;
@@ -319,7 +384,7 @@ namespace SrcMan
             var rmf = SrcQueue?.Peek();
             Io?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.Yellow);
             Io?.WriteLine($"Size:{rmf?.Length >> 20}MB", default, ConsoleColor.DarkMagenta);
-            Io?.WriteLine($"[{SrcQueue?.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
         [MsAlias("Jmp")]
@@ -329,8 +394,9 @@ namespace SrcMan
             if (!QueueCheck()) return;
             Io?.Write("Jump:", default, ConsoleColor.DarkBlue);
             var rmf = SrcQueue?.Dequeue();
+            BufferList.Remove(rmf?.Name??"");
             Io?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.DarkRed);
-            Io?.WriteLine($"[{SrcQueue?.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
         [MsAlias("Rm")]
@@ -340,11 +406,34 @@ namespace SrcMan
             if (!QueueCheck()) return;
             Io?.Write("Remove:", default, ConsoleColor.Red);
             var rmf = SrcQueue?.Dequeue();
+            BufferList.Remove(rmf?.Name ?? "");
             Io?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.Blue);
             rmf?.Delete();
-            Io?.WriteLine($"[{SrcQueue?.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
+        private bool TryParseF(FileInfo fo, out DbEngine.DbStore.SrcItem? o)
+        {
+            var itemInfoArr = DbEngine.SplitFn(fo);
+            var numbRgx = new Regex("[0-9]");
+            try
+            {
+                o = new DbEngine.DbStore.SrcItem
+                {
+                    Path = fo.FullName,
+                    Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
+                        ? $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}-{itemInfoArr[4]}"
+                        : $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}"
+                };
+                return true;
+            }
+            catch (Exception e)
+            {
+                o = null;
+                return false;
+            }
+
+        }
         public void Add()
         {
             if (!(Db?.DbCheck() ?? false)) return;
@@ -362,19 +451,42 @@ namespace SrcMan
             DbEngine.DbStore.SrcActor actor;
             if (!(Db?.Store?.Actors.Contains(itemInfoArr[1]) ?? false))
             {
+
                 actor = new DbEngine.DbStore.SrcActor
                 {
                     Name = itemInfoArr[1],
                     Index = Db?.Store?.Actors.Count ?? 0
                 };
-
+                if (Io?.
+                    ReadLine($"未找到 {actor.Name}，是否现在添加？(默认添加)", "y")?.ToLower() == "y")
+                {
+                    Db?.Store?.Actors.Add(actor);
+                }
+                else
+                {
+                    Io?.WriteLine("操作终止。", OutputType.Error);
+                    return;
+                }
                 Db?.Store?.Actors.Add(actor);
             }
             else
             {
                 actor = Db.Store.Actors[itemInfoArr[1]];
             }
+            Io?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+            {
+                (actor.Name??"<>",ConsoleColor.Yellow),
+                ($" {itemInfo.Name} ",null),
+                (itemInfo.GetLabels(),ConsoleColor.Blue),
+                (" ",null),
+                (itemInfo.Stared?"⭐":"",ConsoleColor.Cyan)
+            });
 
+            if (Io?.ReadLine($"这是对的吗？(默认y)", "y")?.ToLower() != "y")
+            {
+                Io?.WriteLine("操作终止。", OutputType.Error);
+                return;
+            }
             itemInfo.Index = 100 * actor.Index + actor.Items.Count;
             actor.Items.Add(itemInfo);
             if (itemInfoArr.Length > 4)
@@ -397,55 +509,18 @@ namespace SrcMan
             Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
             fi?.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
             itemInfo.Path = Path.Combine(fi?.DirectoryName ?? "", sb.ToString());
-            Io?.WriteLine($"[{SrcQueue?.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
-        public void Add(string actorCode, string name)
+
+        public void Add(string actorCode, string name, string labels="")
         {
             if (!(Db?.DbCheck() ?? false)) return;
             if (!QueueCheck()) return;
+
             actorCode = actorCode.ToUpper();
             DbEngine.DbStore.SrcActor? actor;
-            if (ActorCodeRegex.IsMatch(actorCode))
-            {
-                var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
-                actor = Db?.Store?.Actors?.FirstOrDefault(a => a?.Index == index);
-            }
-            else
-            {
-                actor = Db?.Store?.Actors?.Where(a => a?.Name?.Contains(actorCode) ?? false).FirstOrDefault();
-            }
-
-            if (actor == null)
-            {
-                actor = new DbEngine.DbStore.SrcActor {Name = actorCode, Index = Db?.Store?.Actors?.Count ?? 0};
-
-                Db?.Store?.Actors?.Add(actor);
-            }
-
-            var item = new DbEngine.DbStore.SrcItem();
-            var fi = SrcQueue?.Dequeue();
-
-            item.Name = name;
-            item.Index = 100 * actor.Index + actor.Items.Count;
-            actor.Items.Add(item);
-            Db?.Store?.Init();
-            var sb = new StringBuilder($"{DbEngine.GetItemCode(item.Index)}-{actor.Name}-{item.Name}");
-            sb.Append(fi?.Extension);
-            Io?.Write("Add:", default, ConsoleColor.Green);
-            Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
-            fi?.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
-            item.Path = Path.Combine(fi?.DirectoryName ?? "", sb.ToString());
-            Io?.WriteLine($"[{SrcQueue?.Count}] Items Remaining.", default, ConsoleColor.Magenta);
-        }
-
-        public void Add(string actorCode, string name, string labels)
-        {
-            if (!(Db?.DbCheck() ?? false)) return;
-            if (!QueueCheck()) return;
-            actorCode = actorCode.ToUpper();
-            DbEngine.DbStore.SrcActor? actor;
-            if (ActorCodeRegex.IsMatch(actorCode))
+            if (actorCode.Length==2 && ActorCodeRegex.IsMatch(actorCode))
             {
                 var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
                 actor = Db?.Store?.Actors.FirstOrDefault(a => a.Index == index);
@@ -458,89 +533,74 @@ namespace SrcMan
             if (actor == null)
             {
                 actor = new DbEngine.DbStore.SrcActor {Name = actorCode, Index = Db?.Store?.Actors.Count ?? 0};
+                if (Io?.ReadLine($"未找到 {actor.Name}，是否现在添加？(默认添加)", "y")?.ToLower() == "y")
+                {
+                    Db?.Store?.Actors.Add(actor);
+                }
+                else
+                {
+                    Io?.WriteLine("操作终止。", OutputType.Error);
+                    return;
+                }
 
-                Db?.Store?.Actors.Add(actor);
             }
 
             var item = new DbEngine.DbStore.SrcItem();
-            var fi = SrcQueue?.Dequeue();
+            var fi = SrcQueue?.Peek();
             item.Path = fi?.FullName;
             item.Name = name;
             item.Index = 100 * actor.Index + actor.Items.Count;
-            var lbs = labels.ToUpper().Split("-");
-            foreach (var lb in lbs) item.Labels.Add(lb);
-            if (lbs.Contains("M"))
+            if (!IsNullOrEmpty(labels))
             {
-                item.Stared = true;
-                actor.Stared = true;
+                var lbs = labels.ToUpper().Split("-");
+                foreach (var lb in lbs) item.Labels.Add(lb);
+                if (lbs.Contains("M"))
+                {
+                    item.Stared = true;
+                }
             }
+            var itemLabels = item.GetLabels();
+            Io?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+            {
+                (actor.Name??"<>",ConsoleColor.Yellow),
+                ($" {item.Name} ",null),
+                (itemLabels,ConsoleColor.Blue),
+                (" ",null),
+                (item.Stared?"⭐":"",ConsoleColor.Cyan)
+            });
 
+            if (Io?.ReadLine($"这是对的吗？(默认y)", "y")?.ToLower() != "y")
+            {
+                Io?.WriteLine("操作终止。", OutputType.Error);
+                return;
+            }
+            SrcQueue?.Dequeue();
             actor.Items.Add(item);
             Db?.Store?.Init();
             var sb = new StringBuilder($"{DbEngine.GetItemCode(item.Index)}-{actor.Name}-{item.Name}");
-            if (item.Labels.Count != 0)
-                foreach (var label in item.Labels)
-                    sb.Append($"-{label}");
+
+            if(!IsNullOrEmpty(itemLabels))sb.Append($"-{itemLabels}");
+
             sb.Append(fi?.Extension);
             Io?.Write("Add:", default, ConsoleColor.Green);
             Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
-            fi?.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
+            string targetDirectory= fi?.DirectoryName??"";
+            if (fi?.Length >> 30 >= 2 &&
+                Io?.ReadLine($"文件过大。进行转换？(默认y)", "y")?.ToLower() == "y")
+            {
+                targetDirectory = ConfigData?.ConvertPath??"";
+                ConvertFiles?.Add(item);
+            }
+
+            BufferList.Remove(fi?.Name??"");
             item.Path = Path.Combine(fi?.DirectoryName ?? "", sb.ToString());
-            Io?.WriteLine($"[{SrcQueue?.Count}] Items Remaining.", default, ConsoleColor.Magenta);
+            fi?.MoveTo(Path.Combine(targetDirectory, sb.ToString()));
+
+            BufferList.Add(fi?.Name ?? "");
+            Save();
+            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
-        public void AddC()
-        {
-            if (!(Db?.DbCheck() ?? false)) return;
-            if (!QueueCheck()) return;
-            if (SrcQueue is null) return;
-            var itemInfoArr = DbEngine.SplitFn(SrcQueue.Peek());
-            var numbRgx = new Regex("[0-9]");
-            var itemInfo = new DbEngine.DbStore.SrcItem
-            {
-                Path = SrcQueue.Peek().FullName,
-                Name = itemInfoArr.Length > 4 && numbRgx.IsMatch(itemInfoArr[4])
-                    ? $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}-{itemInfoArr[4]}"
-                    : $"{itemInfoArr[2].ToUpper()}-{itemInfoArr[3].ToUpper()}"
-            };
-            DbEngine.DbStore.SrcActor actor;
-            if (!(Db?.Store?.Actors.Contains(itemInfoArr[1]) ?? false))
-            {
-                actor = new DbEngine.DbStore.SrcActor {Name = itemInfoArr[1], Index = Db?.Store?.Actors.Count ?? 0};
-
-                Db?.Store?.Actors.Add(actor);
-            }
-            else
-            {
-                actor = Db.Store.Actors[itemInfoArr[1]];
-            }
-
-            itemInfo.Index = 100 * actor.Index + actor.Items.Count;
-            actor.Items.Add(itemInfo);
-            if (itemInfoArr.Length > 4)
-                foreach (var label in itemInfoArr[4..])
-                {
-                    if (numbRgx.IsMatch(label)) continue;
-                    itemInfo.Labels.Add(label.ToUpper());
-                    if (!(Db?.Store?.Labels.Contains(label.ToUpper()) ?? false))
-                        Db?.Store?.Labels.Add(new DbEngine.DbStore.SrcLabel {Name = label.ToUpper()});
-                    Db?.Store?.Labels[label.ToUpper()].Items.Add(itemInfo);
-                }
-
-            itemInfo.Stared = itemInfo.Labels.Contains("M");
-
-            Db?.Store?.Init();
-            var sb = new StringBuilder($"{DbEngine.GetItemCode(itemInfo.Index)}-{actor.Name}-{itemInfo.Name}");
-            sb.Append(SrcQueue.Peek().Extension);
-            Io?.Write("Add:", default, ConsoleColor.Green);
-            var fi = SrcQueue.Dequeue();
-            Io?.WriteLine($"{fi.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
-
-            itemInfo.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            ConvertFiles?.Add(itemInfo);
-            fi.MoveTo(Path.Combine(ConfigData?.ConvertPath ?? "", sb.ToString()));
-            Io?.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
-        }
 
         private bool ConvertCheck()
         {
@@ -563,103 +623,6 @@ namespace SrcMan
             return true;
         }
 
-        public void AddC(string actorCode, string name)
-        {
-            if (!(Db?.DbCheck() ?? false)) return;
-            if (!QueueCheck()) return;
-            actorCode = actorCode.ToUpper();
-            DbEngine.DbStore.SrcActor? actor;
-            if (ActorCodeRegex.IsMatch(actorCode))
-            {
-                var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
-                actor = Db?.Store?.Actors.FirstOrDefault(a => a.Index == index);
-            }
-            else
-            {
-                actor = Db?.Store?.Actors.FirstOrDefault(a => a?.Name?.Contains(actorCode) ?? false);
-            }
-
-            if (actor == null)
-            {
-                actor = new DbEngine.DbStore.SrcActor {Name = actorCode, Index = Db?.Store?.Actors.Count ?? 0};
-
-                Db?.Store?.Actors.Add(actor);
-            }
-
-            var item = new DbEngine.DbStore.SrcItem();
-            if (SrcQueue is null) return;
-            var fi = SrcQueue.Dequeue();
-
-            item.Name = name;
-            item.Index = 100 * actor.Index + actor.Items.Count;
-            actor.Items.Add(item);
-            Db?.Store?.Init();
-            var sb = new StringBuilder($"{DbEngine.GetItemCode(item.Index)}-{actor.Name}-{item.Name}");
-            sb.Append(fi.Extension);
-            Io?.Write("Add:", default, ConsoleColor.Green);
-            Io?.WriteLine($"{fi.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
-            item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            ConvertFiles?.Add(item);
-            fi.MoveTo(Path.Combine(ConfigData?.ConvertPath ?? "", sb.ToString()));
-            Io?.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
-        }
-
-        public void AddC(string actorCode, string name, string labels)
-        {
-            if (!(Db?.DbCheck() ?? false)) return;
-            if (!QueueCheck()) return;
-            actorCode = actorCode.ToUpper();
-            DbEngine.DbStore.SrcActor? actor;
-            if (ActorCodeRegex.IsMatch(actorCode))
-            {
-                var index = 26 * (actorCode[0] - 'A') + actorCode[1] - 'A';
-                actor = Db?.Store?.Actors.FirstOrDefault(a => a.Index == index);
-            }
-            else
-            {
-                actor = Db?.Store?.Actors.FirstOrDefault(a => a?.Name?.Contains(actorCode) ?? false);
-            }
-
-            if (actor == null)
-            {
-                actor = new DbEngine.DbStore.SrcActor
-                {
-                    Name = actorCode,
-                    Index = Db?.Store?.Actors.Count ?? 0
-                };
-
-                Db?.Store?.Actors.Add(actor);
-            }
-
-            var item = new DbEngine.DbStore.SrcItem();
-            if (SrcQueue is null) return;
-            var fi = SrcQueue.Dequeue();
-            item.Path = fi.FullName;
-            item.Name = name;
-            item.Index = 100 * actor.Index + actor.Items.Count;
-            var lbs = labels.ToUpper().Split("-");
-            foreach (var lb in lbs) item.Labels.Add(lb);
-            if (lbs.Contains("M"))
-            {
-                item.Stared = true;
-                actor.Stared = true;
-            }
-
-            actor.Items.Add(item);
-            Db?.Store?.Init();
-            var sb = new StringBuilder($"{DbEngine.GetItemCode(item.Index)}-{actor.Name}-{item.Name}");
-            if (item.Labels.Count != 0)
-                foreach (var label in item.Labels)
-                    sb.Append($"-{label}");
-            sb.Append(fi.Extension);
-            Io?.Write("Add:", default, ConsoleColor.Green);
-            Io?.WriteLine($"{fi.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
-            ConvertFiles?.Add(item);
-            item.Path = Path.Combine(fi.DirectoryName, sb.ToString());
-            fi.MoveTo(Path.Combine(ConfigData?.ConvertPath ?? "", sb.ToString()));
-
-            Io?.WriteLine($"[{SrcQueue.Count}] Items Remaining.", default, ConsoleColor.Magenta);
-        }
 
         public void Play()
         {
@@ -669,7 +632,7 @@ namespace SrcMan
             Io?.Write("Play:", default, ConsoleColor.Cyan);
             Io?.WriteLine($"{src.FullName}", default, ConsoleColor.Yellow);
             Io?.WriteLine($"Size:{src.Length >> 20}MB", default, ConsoleColor.DarkMagenta);
-            Io?.WriteLine($"[{SrcQueue.Count - 1}] Items Remaining.", default, ConsoleColor.Magenta);
+            Io?.WriteLine($"[{SrcQueue.Count - 1}] 件剩余", default, ConsoleColor.Magenta);
 
             var player = new Process
             {
@@ -684,14 +647,25 @@ namespace SrcMan
         [MsAlias("Enq")]
         public string EnQueueAll()
         {
-            SrcQueue = new Queue<FileInfo>();
-            DepackageFolders();
-            foreach (var file in new DirectoryInfo(ConfigData?.CachePath).GetFiles())
-                if (SrcExt.Contains(file.Extension.ToLower()))
+            UnpackFolders();
+            foreach (var file in new DirectoryInfo(ConfigData?.CachePath??"").GetFiles())
+                if (_srcExt.Contains(file.Extension.ToLower()))
                 {
-                    SrcQueue.Enqueue(file);
-                    Io?.Write("Queued:", default, ConsoleColor.Green);
-                    Io?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
+
+                    if (BufferList.Contains(file.Name)||(TryParseF(file,out var i)
+                                                         &&(Db?.Store?.Items.Contains(i?.Name??"")??false)))
+                    {
+                        Io?.Write("Jumped:", default, ConsoleColor.DarkRed);
+                        Io?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
+                    }
+                    else
+                    {
+                        SrcQueue.Enqueue(file);
+                        BufferList.Add(file.Name);
+                        Io?.Write("Queued:", default, ConsoleColor.Green);
+                        Io?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
+                    }
+
                 }
                 else
                 {
@@ -700,15 +674,19 @@ namespace SrcMan
                     Io?.WriteLine(file.FullName, default, ConsoleColor.Blue);
                 }
 
+            foreach (var fileInfo in SrcQueue)
+            {
+                Io?.WriteLine(fileInfo.FullName);
+            }
             return $"{SrcQueue.Count} Items are queued.";
         }
 
-        private void DepackageFolders()
+        private void UnpackFolders()
         {
             foreach (var dir in new DirectoryInfo(ConfigData?.CachePath ?? "").GetDirectories())
             {
                 foreach (var file in dir.GetFiles())
-                    if (SrcExt.Contains(file.Extension.ToLower()))
+                    if (_srcExt.Contains(file.Extension.ToLower()))
                     {
                         file.MoveTo(Path.Combine(ConfigData?.CachePath ?? "", file.Name));
                         Io?.Write("Moved:", default, ConsoleColor.Cyan);
@@ -747,5 +725,13 @@ namespace SrcMan
         private delegate void Find2(string arg0, string arg1);
 
         private delegate void Find3(string arg0, string arg2, string arg3);
+        private IoServer? Io { get; set; }
+        [MsIgnorable]
+        public void SetIo(IoServer io)
+        {
+            Io = io;
+            FindHandler?.SetIo(io);
+            Db?.SetIo(io);
+        }
     }
 }
