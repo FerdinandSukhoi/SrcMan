@@ -56,6 +56,8 @@ namespace SrcMan
             //MTP = new MTPEngine(DB, ConfigData);
         }
 
+        
+
         private Queue<FileInfo> SrcQueue { get; set; } = new Queue<FileInfo>();
         private HashSet<string> BufferList { get; set; } = new HashSet<string>();
         [MsInfo("Configs")] public Config? ConfigData { get; set; }
@@ -113,6 +115,7 @@ namespace SrcMan
             FindHandler = new FindEngine(Db); FindHandler?.SetIo(Io);
             var cvtSetPath = Path.Combine(ConfigData?.ConfigPath ?? "", "CvtSet.json");
             var bufSetPath = Path.Combine(ConfigData?.ConfigPath ?? "", "BufSet.json");
+            var qPath = Path.Combine(ConfigData?.ConfigPath ?? "", "Queue.json");
             ConvertFiles = File.Exists(cvtSetPath)
                 ? JsonConvert
                     .DeserializeObject<HashSet<DbEngine.DbStore.SrcItem>>
@@ -123,6 +126,12 @@ namespace SrcMan
                     .DeserializeObject<HashSet<string>>
                         (File.ReadAllText(bufSetPath))
                 : new HashSet<string>();
+            ;
+            SrcQueue = File.Exists(qPath) ? 
+                new Queue<FileInfo>(collection: JsonConvert
+                        .DeserializeObject<List<string>>
+                            (File.ReadAllText(qPath)).Select(s => new FileInfo(s)))
+                : new Queue<FileInfo>();
         }
 
         [MsAlias("Sav")]
@@ -133,6 +142,8 @@ namespace SrcMan
                 JsonConvert.SerializeObject(ConvertFiles));
             File.WriteAllText(Path.Combine(ConfigData?.ConfigPath ?? "", "BufSet.json"),
                 JsonConvert.SerializeObject(BufferList));
+            File.WriteAllText(Path.Combine(ConfigData?.ConfigPath ?? "", "Queue.json"),
+                JsonConvert.SerializeObject(SrcQueue.Select(f => f.FullName).ToList()));
         }
 
         [MsAlias("Upd")]
@@ -581,17 +592,23 @@ namespace SrcMan
 
             if(!IsNullOrEmpty(itemLabels))sb.Append($"-{itemLabels}");
 
-            sb.Append(fi?.Extension);
-            Io?.Write("Add:", default, ConsoleColor.Green);
-            Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
+
             string targetDirectory= fi?.DirectoryName??"";
             if (fi?.Length >> 30 >= 2 &&
                 Io?.ReadLine($"文件过大。进行转换？(默认y)", "y")?.ToLower() == "y")
             {
                 targetDirectory = ConfigData?.ConvertPath??"";
                 ConvertFiles?.Add(item);
-            }
 
+                sb.Append(".mp4");
+            }
+            else
+            {
+
+                sb.Append(fi?.Extension);
+            }
+            Io?.Write("Add:", default, ConsoleColor.Green);
+            Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
             BufferList.Remove(fi?.Name??"");
             item.Path = Path.Combine(fi?.DirectoryName ?? "", sb.ToString());
             fi?.MoveTo(Path.Combine(targetDirectory, sb.ToString()));

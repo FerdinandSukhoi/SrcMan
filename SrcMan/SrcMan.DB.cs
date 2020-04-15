@@ -314,7 +314,10 @@ namespace SrcMan
                         }
                         
                         Io?.WriteLine($"Move {fi.FullName} \n >> {itemPath}", default, ConsoleColor.Blue);
-                        
+                        if (!fi.Exists)
+                        {
+                            
+                        }
                         fi.MoveTo(itemPath,true);
                         item.Path = itemPath;
                     }
