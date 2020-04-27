@@ -5,18 +5,11 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="IMobileSuitInfo.cs" />
-    <Compile Remove="MobileSuit.cs" />
-    <Compile Remove="MobileSuitDataConverter.cs" />
-    <Compile Remove="MsInfo.cs" />
-    <Compile Remove="MobileSuitItem.cs" />
-    <Compile Remove="MobileSuitTest.cs" />
-  </ItemGroup>
+
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="PlasticMetal.MobileSuit" Version="1.2.1" />
+    <PackageReference Include="PlasticMetal.MobileSuit" Version="1.3.2.2" />
     <PackageReference Include="System.Collections" Version="4.3.0" />
     <PackageReference Include="System.ObjectModel" Version="4.3.0" />
   </ItemGroup>

@@ -9,7 +9,7 @@ namespace SrcMan
         static void Main(string[] args)
         {
             System.IO.Directory.SetCurrentDirectory(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-            var ms = new MsHost(typeof(SrcMan));
+            var ms = new SuitHost(typeof(SrcMan));
             ms.RunScripts(new[] {"load"});
             ms.Run();
         }

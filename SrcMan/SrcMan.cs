@@ -16,8 +16,8 @@ using static System.String;
 
 namespace SrcMan
 {
-    [MsInfo("Source Manager")]
-    public partial class SrcMan : IIoInteractive
+    [SuitInfo("Source Manager")]
+    public partial class SrcMan : IIOInteractive
     {
         private static readonly string[] FindLabels =
         {
@@ -34,9 +34,9 @@ namespace SrcMan
             }
             else
             {
-                Io?.WriteLine("");
+                IO?.WriteLine("");
 
-                ConfigPath = Path.Combine(Io?.ReadLine(
+                ConfigPath = Path.Combine(IO?.ReadLine(
                                               "InputPath of 'SrcManConfig.json', Leave empty to use current path",
                                               default, true, ConsoleColor.Yellow)
                                           ?? "", "SrcManConfig.json");
@@ -44,7 +44,7 @@ namespace SrcMan
 
 
             if (!File.Exists(ConfigPath))
-                Io?.WriteLine("File Not Found. Use 'init' or 'loadcfg' command to initialize.",
+                IO?.WriteLine("File Not Found. Use 'init' or 'loadcfg' command to initialize.",
                     OutputType.Error);
             else
                 ConfigData =
@@ -60,7 +60,7 @@ namespace SrcMan
 
         private Queue<FileInfo> SrcQueue { get; set; } = new Queue<FileInfo>();
         private HashSet<string> BufferList { get; set; } = new HashSet<string>();
-        [MsInfo("Configs")] public Config? ConfigData { get; set; }
+        [SuitInfo("Configs")] public Config? ConfigData { get; set; }
         public string ConfigPath { get; set; }
         public DbEngine? Db { get; set; }
         private FindEngine? FindHandler { get; set; }
@@ -77,42 +77,42 @@ namespace SrcMan
         public void Config()
         {
             if (ConfigData is null) ConfigData = new Config();
-            ConfigData.DataPath = Io?.ReadLine($"Enter Source Directory\n(Now={ConfigData.DataPath})>",
+            ConfigData.DataPath = IO?.ReadLine($"Enter Source Directory\n(Now={ConfigData.DataPath})>",
                 ConfigData.DataPath, true, ConsoleColor.Blue);
-            ConfigData.ConfigPath = Io?.ReadLine($"Enter ConfigFiles Directory\n(Now={ConfigData.ConfigPath})",
+            ConfigData.ConfigPath = IO?.ReadLine($"Enter ConfigFiles Directory\n(Now={ConfigData.ConfigPath})",
                 ConfigData.ConfigPath, true, ConsoleColor.Blue);
-            ConfigData.CachePath = Io?.ReadLine($"Enter CacheFiles Directory\n(Now={ConfigData.CachePath})",
+            ConfigData.CachePath = IO?.ReadLine($"Enter CacheFiles Directory\n(Now={ConfigData.CachePath})",
                 ConfigData.CachePath, true, ConsoleColor.Blue);
-            ConfigData.ConvertPath = Io?.ReadLine($"Enter ConvertFiles Directory\n(Now={ConfigData.ConvertPath})",
+            ConfigData.ConvertPath = IO?.ReadLine($"Enter ConvertFiles Directory\n(Now={ConfigData.ConvertPath})",
                 ConfigData.ConvertPath, true, ConsoleColor.Blue);
-            ConfigData.PullFilePath = Io?.ReadLine($"Enter Pull Path\n(Now={ConfigData.PullFilePath})",
+            ConfigData.PullFilePath = IO?.ReadLine($"Enter Pull Path\n(Now={ConfigData.PullFilePath})",
                 ConfigData.PullFilePath, true, ConsoleColor.Blue);
             ConfigData.MTPDeviceName =
-                Io?.ReadLine(
+                IO?.ReadLine(
                     $"Enter MTP Device Name (May use 'MTP List' command to get)\n(Now={ConfigData.MTPDeviceName})",
                     ConfigData.MTPDeviceName, true, ConsoleColor.Blue);
             ConfigData.MTPDirectoryPath =
-                Io?.ReadLine(
+                IO?.ReadLine(
                     $"Enter MTP Device Directory Path (May use 'MTP BFSDir10' command to get some examples)\n(Now={ConfigData.MTPDirectoryPath})",
                     ConfigData.MTPDirectoryPath, true, ConsoleColor.Blue);
-            Io?.WriteLine("");
-            Io?.WriteLine("Now:");
-            Io?.WriteLine($"DataFiles Directory={ConfigData.DataPath}");
-            Io?.WriteLine($"ConfigFiles Directory={ConfigData.ConfigPath}");
-            Io?.WriteLine($"CacheFiles Directory={ConfigData.CachePath}");
-            Io?.WriteLine($"ConvertFiles Directory={ConfigData.ConvertPath}");
-            Io?.WriteLine($"Pull Files Directory={ConfigData.PullFilePath}");
-            Io?.WriteLine($"MTP Device Name={ConfigData.MTPDeviceName}");
-            Io?.WriteLine($"MTP Device Directory Path={ConfigData.MTPDirectoryPath}");
-            Io?.WriteLine("");
-            if (Io?.ReadLine("All OK?(default input y to save)", "y", true, ConsoleColor.Yellow)?.ToLower() == "y")
+            IO?.WriteLine("");
+            IO?.WriteLine("Now:");
+            IO?.WriteLine($"DataFiles Directory={ConfigData.DataPath}");
+            IO?.WriteLine($"ConfigFiles Directory={ConfigData.ConfigPath}");
+            IO?.WriteLine($"CacheFiles Directory={ConfigData.CachePath}");
+            IO?.WriteLine($"ConvertFiles Directory={ConfigData.ConvertPath}");
+            IO?.WriteLine($"Pull Files Directory={ConfigData.PullFilePath}");
+            IO?.WriteLine($"MTP Device Name={ConfigData.MTPDeviceName}");
+            IO?.WriteLine($"MTP Device Directory Path={ConfigData.MTPDirectoryPath}");
+            IO?.WriteLine("");
+            if (IO?.ReadLine("All OK?(default input y to save)", "y", true, ConsoleColor.Yellow)?.ToLower() == "y")
                 File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(ConfigData));
         }
 
         public void Load()
         {
             Db?.Load();
-            FindHandler = new FindEngine(Db); FindHandler?.SetIo(Io);
+            FindHandler = new FindEngine(Db); FindHandler?.SetIO(IO);
             var cvtSetPath = Path.Combine(ConfigData?.ConfigPath ?? "", "CvtSet.json");
             var bufSetPath = Path.Combine(ConfigData?.ConfigPath ?? "", "BufSet.json");
             var qPath = Path.Combine(ConfigData?.ConfigPath ?? "", "Queue.json");
@@ -134,7 +134,7 @@ namespace SrcMan
                 : new Queue<FileInfo>();
         }
 
-        [MsAlias("Sav")]
+        [SuitAlias("Sav")]
         public void Save()
         {
             Db?.Save();
@@ -146,7 +146,7 @@ namespace SrcMan
                 JsonConvert.SerializeObject(SrcQueue.Select(f => f.FullName).ToList()));
         }
 
-        [MsAlias("Upd")]
+        [SuitAlias("Upd")]
         public void Update()
         {
             if (ConvertCheck()) Db?.Format();
@@ -223,7 +223,7 @@ namespace SrcMan
         {
             FindHandler?.L(arg0, arg1, arg2);
         }
-        [MsAlias("Dir")]
+        [SuitAlias("Dir")]
         public void ViewDirectory(string itemId)
         {
             if (!(Db?.DbCheck() ?? false)) return;
@@ -239,7 +239,7 @@ namespace SrcMan
                 : Db?.Store?.Items.FirstOrDefault(i => i.Name?.Contains(itemId) ?? false);
             if (item is null)
             {
-                Io?.WriteLine("No Such Item.", OutputType.Error);
+                IO?.WriteLine("No Such Item.", OutputType.Error);
                 return;
             }
 
@@ -266,7 +266,7 @@ namespace SrcMan
                 : Db?.Store?.Items.FirstOrDefault(i => i.Name?.Contains(itemId) ?? false);
             if (item is null)
             {
-                Io?.WriteLine("No Such Item.", OutputType.Error);
+                IO?.WriteLine("No Such Item.", OutputType.Error);
                 return;
             }
 
@@ -279,7 +279,7 @@ namespace SrcMan
             };
             player.Start();
         }
-        [MsAlias("Rm")]
+        [SuitAlias("Rm")]
         public void Remove(string itemId)
         {
             if (!(Db?.DbCheck() ?? false)) return;
@@ -294,11 +294,11 @@ namespace SrcMan
                 : Db?.Store?.Items.FirstOrDefault(i => i.Name?.Contains(itemId) ?? false);
             if (item is null)
             {
-                Io?.WriteLine("No Such Item.", OutputType.Error);
+                IO?.WriteLine("No Such Item.", OutputType.Error);
                 return;
             }
             var itemLabels = item.GetLabels();
-            Io?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+            IO?.WriteLine(contentArray: new (string, ConsoleColor?)[]
             {
                 (item.Actress.Name??"<>",ConsoleColor.Yellow),
                 ($" {item.Name} ",null),
@@ -307,9 +307,9 @@ namespace SrcMan
                 (item.Stared?"⭐":"",ConsoleColor.Cyan)
             });
 
-            if (Io?.ReadLine($"要删除吗？(默认y)", "y")?.ToLower() != "y")
+            if (IO?.ReadLine($"要删除吗？(默认y)", "y")?.ToLower() != "y")
             {
-                Io?.WriteLine("操作终止。", OutputType.Error);
+                IO?.WriteLine("操作终止。", OutputType.Error);
                 return;
             }
 
@@ -366,8 +366,8 @@ namespace SrcMan
                 Db?.Store?.Init();
                 var sb = new StringBuilder($"{DbEngine.GetItemCode(itemInfo.Index)}-{actor.Name}-{itemInfo.Name}");
                 sb.Append(item.Extension);
-                Io?.Write("Pulled:", default, ConsoleColor.Green);
-                Io?.WriteLine($"{item.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
+                IO?.Write("Pulled:", default, ConsoleColor.Green);
+                IO?.WriteLine($"{item.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
                 item.MoveTo(Path.Combine(item.DirectoryName, sb.ToString()));
                 itemInfo.Path = Path.Combine(item.DirectoryName, sb.ToString());
             }
@@ -379,7 +379,7 @@ namespace SrcMan
         {
             if (SrcQueue?.Count == 0)
             {
-                Io?.WriteLine("Cache Queue not loaded, use 'EnqueueAll'.", OutputType.Error);
+                IO?.WriteLine("Cache Queue not loaded, use 'EnqueueAll'.", OutputType.Error);
 
                 return false;
             }
@@ -391,39 +391,40 @@ namespace SrcMan
         {
             if (!(Db?.DbCheck() ?? false)) return;
             if (!QueueCheck()) return;
-            Io?.Write("Peek:", default, ConsoleColor.Blue);
+            IO?.Write("Peek:", default, ConsoleColor.Blue);
             var rmf = SrcQueue?.Peek();
-            Io?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.Yellow);
-            Io?.WriteLine($"Size:{rmf?.Length >> 20}MB", default, ConsoleColor.DarkMagenta);
-            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
+            IO?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.Yellow);
+            IO?.WriteLine($"Size:{rmf?.Length >> 20}MB", default, ConsoleColor.DarkMagenta);
+            IO?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
-        [MsAlias("Jmp")]
+        [SuitAlias("Jmp")]
         public void Jump()
         {
             if (!(Db?.DbCheck() ?? false)) return;
             if (!QueueCheck()) return;
-            Io?.Write("Jump:", default, ConsoleColor.DarkBlue);
+            IO?.Write("Jump:", default, ConsoleColor.DarkBlue);
             var rmf = SrcQueue?.Dequeue();
             BufferList.Remove(rmf?.Name??"");
-            Io?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.DarkRed);
-            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
+            IO?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.DarkRed);
+            IO?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
-        [MsAlias("Rm")]
+        [SuitAlias("Rm")]
         public void Remove()
         {
             if (!(Db?.DbCheck() ?? false)) return;
             if (!QueueCheck()) return;
-            Io?.Write("Remove:", default, ConsoleColor.Red);
+            if (IO?.ReadLine($"Remove{SrcQueue?.Peek().Name}?")?.ToLower() != "y") return;
+            IO?.Write("Remove:", default, ConsoleColor.Red);
             var rmf = SrcQueue?.Dequeue();
             BufferList.Remove(rmf?.Name ?? "");
-            Io?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.Blue);
+            IO?.WriteLine($"{rmf?.FullName}", default, ConsoleColor.Blue);
             rmf?.Delete();
-            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
+            IO?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
-        private bool TryParseF(FileInfo fo, out DbEngine.DbStore.SrcItem? o)
+        private static bool TryParseF(FileInfo fo, out DbEngine.DbStore.SrcItem? o)
         {
             var itemInfoArr = DbEngine.SplitFn(fo);
             var numbRgx = new Regex("[0-9]");
@@ -468,14 +469,14 @@ namespace SrcMan
                     Name = itemInfoArr[1],
                     Index = Db?.Store?.Actors.Count ?? 0
                 };
-                if (Io?.
+                if (IO?.
                     ReadLine($"未找到 {actor.Name}，是否现在添加？(默认添加)", "y")?.ToLower() == "y")
                 {
                     Db?.Store?.Actors.Add(actor);
                 }
                 else
                 {
-                    Io?.WriteLine("操作终止。", OutputType.Error);
+                    IO?.WriteLine("操作终止。", OutputType.Error);
                     return;
                 }
                 Db?.Store?.Actors.Add(actor);
@@ -484,7 +485,7 @@ namespace SrcMan
             {
                 actor = Db.Store.Actors[itemInfoArr[1]];
             }
-            Io?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+            IO?.WriteLine(contentArray: new (string, ConsoleColor?)[]
             {
                 (actor.Name??"<>",ConsoleColor.Yellow),
                 ($" {itemInfo.Name} ",null),
@@ -493,9 +494,9 @@ namespace SrcMan
                 (itemInfo.Stared?"⭐":"",ConsoleColor.Cyan)
             });
 
-            if (Io?.ReadLine($"这是对的吗？(默认y)", "y")?.ToLower() != "y")
+            if (IO?.ReadLine($"这是对的吗？(默认y)", "y")?.ToLower() != "y")
             {
-                Io?.WriteLine("操作终止。", OutputType.Error);
+                IO?.WriteLine("操作终止。", OutputType.Error);
                 return;
             }
             itemInfo.Index = 100 * actor.Index + actor.Items.Count;
@@ -515,12 +516,12 @@ namespace SrcMan
             var sb = new StringBuilder($"{DbEngine.GetItemCode(itemInfo.Index)}-{actor.Name}-{itemInfo.Name}");
 
             sb.Append(SrcQueue?.Peek().Extension);
-            Io?.Write("Add:", default, ConsoleColor.Green);
+            IO?.Write("Add:", default, ConsoleColor.Green);
             var fi = SrcQueue?.Dequeue();
-            Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
+            IO?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
             fi?.MoveTo(Path.Combine(fi.DirectoryName, sb.ToString()));
             itemInfo.Path = Path.Combine(fi?.DirectoryName ?? "", sb.ToString());
-            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
+            IO?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
 
@@ -530,6 +531,15 @@ namespace SrcMan
             if (!QueueCheck()) return;
 
             actorCode = actorCode.ToUpper();
+            if (actorCode[0] == '\\')
+            {
+                if (actorCode.Length <= 1)
+                {
+                    IO?.WriteLine("操作终止。", OutputType.Error);
+                    return;
+                }
+                actorCode = actorCode[1..];
+            }
             DbEngine.DbStore.SrcActor? actor;
             if (actorCode.Length==2 && ActorCodeRegex.IsMatch(actorCode))
             {
@@ -543,14 +553,16 @@ namespace SrcMan
 
             if (actor == null)
             {
+
+
                 actor = new DbEngine.DbStore.SrcActor {Name = actorCode, Index = Db?.Store?.Actors.Count ?? 0};
-                if (Io?.ReadLine($"未找到 {actor.Name}，是否现在添加？(默认添加)", "y")?.ToLower() == "y")
+                if (IO?.ReadLine($"未找到 {actor.Name}，是否现在添加？(默认添加)", "y")?.ToLower() == "y")
                 {
                     Db?.Store?.Actors.Add(actor);
                 }
                 else
                 {
-                    Io?.WriteLine("操作终止。", OutputType.Error);
+                    IO?.WriteLine("操作终止。", OutputType.Error);
                     return;
                 }
 
@@ -560,6 +572,15 @@ namespace SrcMan
             var fi = SrcQueue?.Peek();
             item.Path = fi?.FullName;
             item.Name = name;
+            if (Db?.Store?.Items.Contains(item.Name.ToUpper())??false)
+            {
+                IO?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+                {
+                    ("Item ",ConsoleColor.Yellow),
+                    ($" {item.Name} ",null),
+                    ("Already existed!!",ConsoleColor.Yellow)
+                });
+            }
             item.Index = 100 * actor.Index + actor.Items.Count;
             if (!IsNullOrEmpty(labels))
             {
@@ -571,7 +592,7 @@ namespace SrcMan
                 }
             }
             var itemLabels = item.GetLabels();
-            Io?.WriteLine(contentArray: new (string, ConsoleColor?)[]
+            IO?.WriteLine(contentArray: new (string, ConsoleColor?)[]
             {
                 (actor.Name??"<>",ConsoleColor.Yellow),
                 ($" {item.Name} ",null),
@@ -580,9 +601,9 @@ namespace SrcMan
                 (item.Stared?"⭐":"",ConsoleColor.Cyan)
             });
 
-            if (Io?.ReadLine($"这是对的吗？(默认y)", "y")?.ToLower() != "y")
+            if (IO?.ReadLine($"这是对的吗？(默认y)", "y")?.ToLower() != "y")
             {
-                Io?.WriteLine("操作终止。", OutputType.Error);
+                IO?.WriteLine("操作终止。", OutputType.Error);
                 return;
             }
             SrcQueue?.Dequeue();
@@ -595,7 +616,7 @@ namespace SrcMan
 
             string targetDirectory= fi?.DirectoryName??"";
             if (fi?.Length >> 30 >= 2 &&
-                Io?.ReadLine($"文件过大。进行转换？(默认y)", "y")?.ToLower() == "y")
+                IO?.ReadLine($"文件过大。进行转换？(默认y)", "y")?.ToLower() == "y")
             {
                 targetDirectory = ConfigData?.ConvertPath??"";
                 ConvertFiles?.Add(item);
@@ -607,15 +628,15 @@ namespace SrcMan
 
                 sb.Append(fi?.Extension);
             }
-            Io?.Write("Add:", default, ConsoleColor.Green);
-            Io?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
+            IO?.Write("Add:", default, ConsoleColor.Green);
+            IO?.WriteLine($"{fi?.FullName}\n>>\n{sb}", default, ConsoleColor.Yellow);
             BufferList.Remove(fi?.Name??"");
             item.Path = Path.Combine(fi?.DirectoryName ?? "", sb.ToString());
             fi?.MoveTo(Path.Combine(targetDirectory, sb.ToString()));
 
             BufferList.Add(fi?.Name ?? "");
             Save();
-            Io?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
+            IO?.WriteLine($"[{SrcQueue?.Count}] 件剩余", default, ConsoleColor.Magenta);
         }
 
 
@@ -630,7 +651,7 @@ namespace SrcMan
                 }
                 else
                 {
-                    Io?.WriteLine($"Converting File {convertFile.Name}", OutputType.Error);
+                    IO?.WriteLine($"Converting File {convertFile.Name}", OutputType.Error);
                     return false;
                 }
 
@@ -646,10 +667,10 @@ namespace SrcMan
             if (SrcQueue is null) return;
             if (!QueueCheck()) return;
             var src = SrcQueue.Peek();
-            Io?.Write("Play:", default, ConsoleColor.Cyan);
-            Io?.WriteLine($"{src.FullName}", default, ConsoleColor.Yellow);
-            Io?.WriteLine($"Size:{src.Length >> 20}MB", default, ConsoleColor.DarkMagenta);
-            Io?.WriteLine($"[{SrcQueue.Count - 1}] 件剩余", default, ConsoleColor.Magenta);
+            IO?.Write("Play:", default, ConsoleColor.Cyan);
+            IO?.WriteLine($"{src.FullName}", default, ConsoleColor.Yellow);
+            IO?.WriteLine($"Size:{src.Length >> 20}MB", default, ConsoleColor.DarkMagenta);
+            IO?.WriteLine($"[{SrcQueue.Count - 1}] 件剩余", default, ConsoleColor.Magenta);
 
             var player = new Process
             {
@@ -661,7 +682,7 @@ namespace SrcMan
             player.Start();
         }
 
-        [MsAlias("Enq")]
+        [SuitAlias("Enq")]
         public string EnQueueAll()
         {
             UnpackFolders();
@@ -672,28 +693,28 @@ namespace SrcMan
                     if (BufferList.Contains(file.Name)||(TryParseF(file,out var i)
                                                          &&(Db?.Store?.Items.Contains(i?.Name??"")??false)))
                     {
-                        Io?.Write("Jumped:", default, ConsoleColor.DarkRed);
-                        Io?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
+                        IO?.Write("Jumped:", default, ConsoleColor.DarkRed);
+                        IO?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
                     }
                     else
                     {
                         SrcQueue.Enqueue(file);
                         BufferList.Add(file.Name);
-                        Io?.Write("Queued:", default, ConsoleColor.Green);
-                        Io?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
+                        IO?.Write("Queued:", default, ConsoleColor.Green);
+                        IO?.WriteLine(file.FullName, default, ConsoleColor.Yellow);
                     }
 
                 }
                 else
                 {
                     file.Delete();
-                    Io?.Write("Removed:", default, ConsoleColor.Red);
-                    Io?.WriteLine(file.FullName, default, ConsoleColor.Blue);
+                    IO?.Write("Removed:", default, ConsoleColor.Red);
+                    IO?.WriteLine(file.FullName, default, ConsoleColor.Blue);
                 }
 
             foreach (var fileInfo in SrcQueue)
             {
-                Io?.WriteLine(fileInfo.FullName);
+                IO?.WriteLine(fileInfo.FullName);
             }
             return $"{SrcQueue.Count} Items are queued.";
         }
@@ -706,22 +727,22 @@ namespace SrcMan
                     if (_srcExt.Contains(file.Extension.ToLower()))
                     {
                         file.MoveTo(Path.Combine(ConfigData?.CachePath ?? "", file.Name));
-                        Io?.Write("Moved:", default, ConsoleColor.Cyan);
-                        Io?.WriteLine($"{file.FullName}", default, ConsoleColor.Yellow);
+                        IO?.Write("Moved:", default, ConsoleColor.Cyan);
+                        IO?.WriteLine($"{file.FullName}", default, ConsoleColor.Yellow);
                     }
 
                 dir.Delete(true);
-                Io?.Write("Remove:", default, ConsoleColor.Red);
-                Io?.WriteLine(dir.FullName, default, ConsoleColor.Blue);
+                IO?.Write("Remove:", default, ConsoleColor.Red);
+                IO?.WriteLine(dir.FullName, default, ConsoleColor.Blue);
             }
         }
 
-        [MsInfo("MergeLabel <SrcLabel> <DesLabel>")]
+        [SuitInfo("MergeLabel <SrcLabel> <DesLabel>")]
         public void MergeLabel(string source, string destination)
         {
             if (!(Db?.Store?.Labels.Contains(source.ToUpper()) ?? false))
             {
-                Io?.WriteLine("No Such Label!", default, ConsoleColor.Red);
+                IO?.WriteLine("No Such Label!", default, ConsoleColor.Red);
 
                 return;
             }
@@ -733,7 +754,7 @@ namespace SrcMan
             }
 
             Db.Store.Init();
-            Io?.WriteLine($"Label Merged:{source}>>{destination}, use 'DB Format' to format.", default,
+            IO?.WriteLine($"Label Merged:{source}>>{destination}, use 'DB Format' to format.", default,
                 ConsoleColor.Green);
         }
 
@@ -742,13 +763,13 @@ namespace SrcMan
         private delegate void Find2(string arg0, string arg1);
 
         private delegate void Find3(string arg0, string arg2, string arg3);
-        private IoServer? Io { get; set; }
-        [MsIgnorable]
-        public void SetIo(IoServer io)
+        private IOServer? IO { get; set; }
+        [SuitIgnore]
+        public void SetIO(IOServer io)
         {
-            Io = io;
-            FindHandler?.SetIo(io);
-            Db?.SetIo(io);
+            IO = io;
+            FindHandler?.SetIO(io);
+            Db?.SetIO(io);
         }
     }
 }

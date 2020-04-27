@@ -15,7 +15,7 @@ namespace SrcMan
 {
     partial class SrcMan
     {
-        public class DbEngine:MsClient
+        public class DbEngine:SuitClient
         {
 
             public class DbStore
@@ -124,7 +124,7 @@ namespace SrcMan
                     i++;
                 }
                 ;
-                Io?.WriteLine($"DB Ordered successfully.", OutputType.AllOk);
+                IO?.WriteLine($"DB Ordered successfully.", OutputType.AllOk);
                 
                 Format();
             }
@@ -136,7 +136,7 @@ namespace SrcMan
             private bool ConfigCheck()
             {
                 if (Config != null) return true;
-                Io?.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",OutputType.Error);
+                IO?.WriteLine("No Config Loaded!Use 'init' or 'loadcfg' command to initialize Config.",OutputType.Error);
                     
                 return false;
             }
@@ -144,7 +144,7 @@ namespace SrcMan
             {
                 if (Store != null) return true;
                 ;
-                Io?.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",OutputType.Error);
+                IO?.WriteLine("No DB Loaded/Built!Use 'db build' or 'db load' command to initialize DB.",OutputType.Error);
                 
                 return false;
             }
@@ -156,18 +156,18 @@ namespace SrcMan
             {
                 if (!ConfigCheck()) return;
                 //,default, ConsoleColor.Blue;
-                //Io?.Write("Enter Source Directory>");
+                //IO?.Write("Enter Source Directory>");
                 //
                 var dataBasePath = Path.Combine(Config.ConfigPath, "SrcDB.json");
                 if (!Directory.Exists(Config.ConfigPath)||!File.Exists(dataBasePath))
                 {
-                    Io?.Write("Directory/File Not Exist!", OutputType.Error);
+                    IO?.Write("Directory/File Not Exist!", OutputType.Error);
                     
                     return;
                 }
                 Store = JsonConvert.DeserializeObject<DbStore>(File.ReadAllText(dataBasePath));
                 Store.Init();
-                Io.WriteLine("DB Loaded Successfully.",
+                IO.WriteLine("DB Loaded Successfully.",
                     OutputType.AllOk);
             }
             public void Build()
@@ -175,11 +175,11 @@ namespace SrcMan
                 Store = new DbStore();
                 if (!ConfigCheck()) return;
                 //,default, ConsoleColor.Blue;
-                //Io?.Write("Enter Source Directory>");
+                //IO?.Write("Enter Source Directory>");
                 //
                 if (!Directory.Exists(Config.DataPath))
                 {
-                    Io?.Write("Directory Not Exist!", OutputType.Error);
+                    IO?.Write("Directory Not Exist!", OutputType.Error);
                     
                     return;
                 }
@@ -205,7 +205,7 @@ namespace SrcMan
                             var itemInfoArr = SplitFn(item);
                             if (itemInfoArr.Length < 4)
                             {
-                                Io?.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
+                                IO?.WriteLine($"FORMAT ERROR:{itemInfoArr[0]}");
                                 continue;
                             }
                             var itemInfo = new DbStore.SrcItem
@@ -239,7 +239,7 @@ namespace SrcMan
                     
 
                 }
-                Io?.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",OutputType.AllOk);
+                IO?.WriteLine("SrcMan DB Built Successfully. Use 'db save' to save db. Use 'db format' to format files.",OutputType.AllOk);
                 
             }
             public void Save()
@@ -248,12 +248,12 @@ namespace SrcMan
                 if (!DbCheck()) return;
                 if (!Directory.Exists(Config.ConfigPath))
                 {
-                    Io?.Write("Directory Not Exist!", OutputType.Error);
+                    IO?.Write("Directory Not Exist!", OutputType.Error);
                     
                     return;
                 }
                 File.WriteAllText(Path.Combine(Config.ConfigPath, "SrcDB.json"), JsonConvert.SerializeObject(Store));
-                Io?.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",OutputType.AllOk);
+                IO?.WriteLine("SrcMan DB Saved Successfully. Use 'db load' to load db. Use 'db format' to format files.",OutputType.AllOk);
                 
             }
             internal static string GetActorCode(int index)
@@ -270,7 +270,7 @@ namespace SrcMan
                 if (!DbCheck()) return;
                 if (Store is null) return;
                 
-                if (Io?.ReadLine(
+                if (IO?.ReadLine(
                         @"SrcMan will format your SrcFiles. This will be irreversible. Are you sure to continue?(default input y to continue)",
                         "y",true,ConsoleColor.Yellow)?.ToLower() != "y") return;
                 foreach (var actor in Store.Actors)
@@ -279,7 +279,7 @@ namespace SrcMan
                     if (!Directory.Exists(actorPrefixDirectory))
                     {
                         
-                        Io?.WriteLine($"MkDir {actorPrefixDirectory}", default, ConsoleColor.Green);
+                        IO?.WriteLine($"MkDir {actorPrefixDirectory}", default, ConsoleColor.Green);
                         
                         Directory.CreateDirectory(actorPrefixDirectory);
                     }
@@ -288,7 +288,7 @@ namespace SrcMan
                     if (!Directory.Exists(actorDir))
                     {
                         
-                        Io?.WriteLine($"MkDir {actorDir}", default, ConsoleColor.Green);
+                        IO?.WriteLine($"MkDir {actorDir}", default, ConsoleColor.Green);
                         
                         Directory.CreateDirectory(actorDir);
                     }
@@ -313,7 +313,7 @@ namespace SrcMan
                             continue;
                         }
                         
-                        Io?.WriteLine($"Move {fi.FullName} \n >> {itemPath}", default, ConsoleColor.Blue);
+                        IO?.WriteLine($"Move {fi.FullName} \n >> {itemPath}", default, ConsoleColor.Blue);
                         if (!fi.Exists)
                         {
                             
@@ -340,7 +340,7 @@ namespace SrcMan
                     else if(files.Length==0)
                     {
                         
-                        Io?.WriteLine($"RmDir {wkDir.FullName}", default, ConsoleColor.Red);
+                        IO?.WriteLine($"RmDir {wkDir.FullName}", default, ConsoleColor.Red);
                         
                         wkDir.Delete();
 
@@ -348,7 +348,7 @@ namespace SrcMan
                 }
 
                 
-                Io?.WriteLine($"DB formatted successfully.", default, ConsoleColor.Green);
+                IO?.WriteLine($"DB formatted successfully.", default, ConsoleColor.Green);
                 
                 Save();
             }
@@ -364,7 +364,7 @@ namespace SrcMan
             //        case "-l":
 
             //        default:
-            //            Io?.WriteLine("This is null");
+            //            IO?.WriteLine("This is null");
             //            break;
             //    }
             //}
